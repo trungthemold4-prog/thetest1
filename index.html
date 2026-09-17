@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TÂN PHÁT MOLD - Quản Trị & Phân Quyền Động</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-main: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #166534;
+            --success-bg: #dcfce7;
+            --warning: #b45309;
+            --warning-bg: #fef3c7;
+            --danger: #dc2626;
+            --danger-bg: #fee2e2;
+            --radius: 8px;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-main); color: var(--text-main); line-height: 1.5; }
+
+        /* MÀN HÌNH ĐĂNG NHẬP */
+        #loginScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.9); z-index: 9999;
+            display: flex; justify-content: center; align-items: center; padding: 20px;
+        }
+        .login-card {
+            background: white; width: 100%; max-width: 400px; padding: 30px;
+            border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .login-title { font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-bottom: 5px; text-align: center; }
+        .login-subtitle { font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: 20px; }
+
+        /* HEADER & NAVIGATION */
+        header { background: #0f172a; color: white; padding: 0 5%; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+        .header-container { display: flex; justify-content: space-between; align-items: center; height: 64px; }
+        .logo { font-size: 1.25rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 8px; }
+        .logo span { color: #60a5fa; }
+        
+        .nav-tabs { display: flex; gap: 4px; height: 100%; overflow-x: auto; }
+        .tab-btn { background: transparent; border: none; color: #94a3b8; padding: 0 14px; font-weight: 500; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .tab-btn:hover { color: white; }
+        .tab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; font-weight: 600; }
+
+        .user-widget { display: flex; align-items: center; gap: 10px; background: #1e293b; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+
+        /* LAYOUT & CONTAINERS */
+        main { max-width: 1280px; margin: 24px auto; padding: 0 20px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.25s ease-in-out; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        .page-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px; }
+        .page-title { font-size: 1.35rem; font-weight: 700; color: var(--text-main); }
+        .page-subtitle { font-size: 0.875rem; color: var(--text-muted); }
+
+        /* UI CARDS & GRID */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px; }
+        .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+
+        /* FORMS & INPUTS */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+        .form-control { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; outline: none; transition: border 0.2s; }
+        .form-control:focus { border-color: var(--primary); }
+
+        /* BUTTONS */
+        .btn { padding: 9px 16px; border-radius: 6px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: #166534; color: white; }
+        .btn-success:hover { background: #14532d; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 4px 8px; font-size: 0.75rem; }
+
+        /* TABLES */
+        .table-responsive { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+        th { background: #0f172a; color: white; padding: 12px; font-weight: 600; }
+        td { padding: 12px; border-bottom: 1px solid var(--border); background: white; }
+        tr:last-child td { border-bottom: none; }
+
+        /* BADGES */
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; display: inline-block; }
+        .badge-success { background: var(--success-bg); color: var(--success); }
+        .badge-warning { background: var(--warning-bg); color: var(--warning); }
+        .badge-danger { background: var(--danger-bg); color: var(--danger); }
+        .badge-info { background: #dbeafe; color: #1d4ed8; }
+
+        /* CNC STAT RESULT BOX */
+        .stat-box { background: #2563eb; color: white; padding: 20px; border-radius: var(--radius); display: flex; justify-content: space-around; text-align: center; }
+        .stat-val { font-size: 1.5rem; font-weight: 700; color: #fde047; }
+
+        /* CHAT SYSTEM */
+        .chat-box { height: 380px; overflow-y: auto; background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; font-size: 0.875rem; word-break: break-word; position: relative; }
+        .chat-msg.me { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+        .chat-msg.other { align-self: flex-start; background: #e2e8f0; color: var(--text-main); border-bottom-left-radius: 2px; }
+        .chat-meta { font-size: 0.7rem; opacity: 0.8; margin-bottom: 4px; font-weight: 600; display: flex; justify-content: space-between; gap: 10px; }
+        
+        .chat-reply-preview { font-size: 0.75rem; padding: 6px 10px; border-left: 3px solid #60a5fa; background: rgba(0,0,0,0.08); margin-bottom: 6px; border-radius: 4px; }
+        .chat-msg.me .chat-reply-preview { background: rgba(255,255,255,0.2); border-left-color: #fde047; }
+        .chat-img-thumb { max-width: 100%; max-height: 200px; border-radius: 6px; margin-top: 6px; cursor: pointer; transition: transform 0.2s; display: block; border: 1px solid rgba(0,0,0,0.1); }
+        .chat-img-thumb:hover { transform: scale(1.02); }
+        
+        .chat-actions { font-size: 0.7rem; margin-top: 6px; display: flex; gap: 8px; justify-content: flex-end; opacity: 0.9; }
+        .chat-action-btn { cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 0.7rem; color: inherit; padding: 0; }
+        .chat-action-btn:hover { opacity: 0.8; }
+
+        #replyBanner { display: none; background: #e0f2fe; border-left: 4px solid var(--primary); padding: 8px 12px; font-size: 0.8rem; border-radius: 4px; margin-top: 8px; justify-content: space-between; align-items: center; }
+
+        /* LIGHTBOX MODAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-img { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .modal-close { position: absolute; top: 20px; right: 25px; color: white; font-size: 30px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- MÀN HÌNH ĐĂNG NHẬP -->
+    <div id="loginScreen">
+        <div class="login-card">
+            <h2 class="login-title">⚙️ TÂN PHÁT MOLD</h2>
+            <p class="login-subtitle">Đăng nhập phân quyền phòng ban xưởng</p>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Chọn Nhóm / Phòng Ban</label>
+                    <select id="loginRole" class="form-control" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Mật Khẩu Đăng Nhập</label>
+                    <input type="password" id="loginPassword" placeholder="Nhập mật khẩu của nhóm..." required class="form-control">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Đăng Nhập Hệ Thống</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOP NAVBAR -->
+    <header>
+        <div class="header-container">
+            <div class="logo">⚙️ TÂN PHÁT <span>MOLD</span></div>
+            <nav class="nav-tabs" id="navTabsContainer">
+                <button class="tab-btn active" onclick="switchTab('cnc', event)" data-permission="cnc">🛠️ Chế Độ Cắt</button>
+                <button class="tab-btn" onclick="switchTab('schedule', event)" data-permission="schedule">📅 Tiến Độ</button>
+                <button class="tab-btn" onclick="switchTab('inventory', event)" data-permission="inventory">📦 Kho Vật Tư</button>
+                <button class="tab-btn" onclick="switchTab('chat', event)" data-permission="chat">💬 Trao Đổi</button>
+                <button class="tab-btn" onclick="switchTab('admin', event)" data-permission="admin" style="color: #fde047;">🔒 Quản Trị Nhóm</button>
+            </nav>
+            <div class="user-widget">
+                <div class="status-dot"></div>
+                <span id="navUserDisplay">Đang tải...</span>
+                <button onclick="logout()" class="btn btn-sm btn-danger" style="margin-left: 8px; padding: 2px 6px; font-size: 0.7rem;">Đăng xuất</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- PHẦN 1: MÁY TÍNH CHẾ ĐỘ CẮT CNC -->
+        <section id="tab-cnc" class="tab-content active">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">🛠️ Thư Viện Tính Chế Độ Cắt CNC</h1>
+                    <p class="page-subtitle">Tính toán thông số cắt tối ưu cho phay thô / phay tinh khuôn mẫu</p>
+                </div>
+            </div>
+            
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+                <div class="grid-4" style="margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label>Đường kính dao D (mm)</label>
+                        <input type="number" id="cncD" value="10" class="form-control" oninput="calculateCNC()">
+                    </div>
+                    <div class="form-group">
+                        <label>Vận tốc cắt Vc (m/min)</label>
+                        <input type="number" id="cncVc" value="150" class="form-control" oninput="calculateCNC()">
+                    </div>
+                    <div class="form-group">
+                        <label>Số lưỡi cắt Z</label>
+                        <input type="number" id="cncZ" value="4" class="form-control" oninput="calculateCNC()">
+                    </div>
+                    <div class="form-group">
+                        <label>Tiến dao/răng fz (mm)</label>
+                        <input type="number" step="0.01" id="cncFz" value="0.05" class="form-control" oninput="calculateCNC()">
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <div>
+                        <div style="font-size: 0.8rem; text-transform: uppercase;">Tốc độ trục chính (S)</div>
+                        <div class="stat-val"><span id="resN">4,775</span> <span style="font-size: 0.9rem; color: white;">rpm</span></div>
+                    </div>
+                    <div style="border-right: 1px solid rgba(255,255,255,0.2);"></div>
+                    <div>
+                        <div style="font-size: 0.8rem; text-transform: uppercase;">Tốc độ tiến dao (F)</div>
+                        <div class="stat-val"><span id="resF">955</span> <span style="font-size: 0.9rem; color: white;">mm/min</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PHẦN 2: LẬP KẾ HOẠCH TIẾN ĐỘ GIA CÔNG KHUÔN -->
+        <section id="tab-schedule" class="tab-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">📅 Quản Lý Tiến Độ Gia Công Khuôn</h1>
+                    <p class="page-subtitle">Theo dõi phân công công việc và trạng thái thời gian thực</p>
+                </div>
+                <button id="btnAddScheduleTask" class="btn btn-primary restricted-action" onclick="toggleAddScheduleForm()">+ Tạo Hạng Mục Mới</button>
+            </div>
+
+            <div class="card" id="scheduleFormCard" style="display: none;">
+                <div class="card-title">➕ Tạo Hạng Mục Gia Công Mới</div>
+                <form id="addPlanForm" class="grid-4" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+                    <input type="text" id="pCode" placeholder="Mã BP (VD: CAV-01)" required class="form-control">
+                    <input type="text" id="pName" placeholder="Hạng mục (VD: Phay thô)" required class="form-control">
+                    <input type="text" id="pMachine" placeholder="Máy (VD: CNC Makino)" required class="form-control">
+                    <input type="text" id="pTech" placeholder="Kỹ sư phụ trách" required class="form-control">
+                    <input type="text" id="pTime" placeholder="Thời gian (VD: 20/10-22/10)" required class="form-control">
+                    <select id="pStatus" class="form-control">
+                        <option value="Kế hoạch">Kế hoạch</option>
+                        <option value="Chờ máy">Chờ máy</option>
+                        <option value="Đang gia công">Đang gia công</option>
+                        <option value="Hoàn thành">Hoàn thành</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary" style="grid-column: 1 / -1;">Lưu Vào Tiến Độ</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã Bộ Phận</th>
+                                <th>Hạng Mục Gia Công</th>
+                                <th>Máy Thực Hiện</th>
+                                <th>Kỹ Sư</th>
+                                <th>Thời Gian</th>
+                                <th>Trạng Thái</th>
+                                <th style="text-align: center;" class="col-sched-action">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- PHẦN 3: QUẢN LÝ KHO NHẬP - XUẤT - TỒN -->
+        <section id="tab-inventory" class="tab-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">📦 Quản Lý Kho Vật Tư, Phôi & Dao Cụ</h1>
+                    <p class="page-subtitle">Cập nhật Nhập - Xuất - Tồn kho tự động & cảnh báo ngưỡng an toàn</p>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card restricted-warehouse-tx">
+                    <div class="card-title">🔄 Ghi Nhận Nhập / Xuất Kho</div>
+                    <form id="txForm">
+                        <div class="form-group">
+                            <label>Chọn Vật Tư</label>
+                            <select id="txItemCode" required class="form-control"></select>
+                        </div>
+                        <div class="grid-2" style="gap: 10px; margin-bottom: 0;">
+                            <div class="form-group">
+                                <label>Loại Giao Dịch</label>
+                                <select id="txType" class="form-control">
+                                    <option value="IMPORT">📥 Nhập kho (+)</option>
+                                    <option value="EXPORT">📤 Xuất kho (-)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Số Lượng</label>
+                                <input type="number" id="txQty" min="1" required class="form-control">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success" style="width: 100%;">Xác Nhận Giao Dịch</button>
+                    </form>
+                </div>
+
+                <div class="card restricted-warehouse-add">
+                    <div class="card-title">➕ Tạo Mã Vật Tư Mới</div>
+                    <form id="addItemForm">
+                        <div class="grid-2" style="gap: 10px; margin-bottom: 0;">
+                            <div class="form-group">
+                                <label>Mã Vật Tư</label>
+                                <input type="text" id="itemCode" placeholder="VD: MAT-SKD61" required class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Phân Loại</label>
+                                <select id="itemCat" class="form-control">
+                                    <option value="Thép / Phôi">Thép / Phôi</option>
+                                    <option value="Dao cụ CNC">Dao cụ CNC</option>
+                                    <option value="Hạt nhựa">Hạt nhựa</option>
+                                    <option value="Linh kiện">Linh kiện khuôn</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Tên Vật Tư Chi Tiết</label>
+                            <input type="text" id="itemName" placeholder="VD: Thép tấm SKD61 50x100" required class="form-control">
+                        </div>
+                        <div class="grid-4" style="gap: 10px; margin-bottom: 12px;">
+                            <div class="form-group"><label>Tồn Đầu</label><input type="number" id="itemInit" min="0" required class="form-control"></div>
+                            <div class="form-group"><label>ĐVT</label><input type="text" id="itemUnit" placeholder="Kg/Cái" required class="form-control"></div>
+                            <div class="form-group" style="grid-column: span 2;"><label>Báo Động Tồn <=</label><input type="number" id="itemMin" min="0" required class="form-control"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Tạo Mã Vật Tư</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📋 Báo Cáo Tổng Hợp Tồn Kho</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã VT</th>
+                                <th>Tên Vật Tư</th>
+                                <th>Phân Loại</th>
+                                <th style="text-align: center;">Tồn Đầu</th>
+                                <th style="text-align: center;">Nhập</th>
+                                <th style="text-align: center;">Xuất</th>
+                                <th style="text-align: center;">Tồn Hiện Tại</th>
+                                <th style="text-align: center;">Trạng Thái Kho</th>
+                                <th style="text-align: center;" class="col-inv-action">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- PHẦN 4: TRAO ĐỔI NỘI BỘ, ĐĂNG NHẬP ZALO, GỬI FILE & CTRL+V -->
+        <section id="tab-chat" class="tab-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">💬 Trao Đổi Kỹ Thuật & Xác Thực Zalo</h1>
+                    <p class="page-subtitle">Kênh giao tiếp trực tuyến giữa kỹ sư xưởng và phòng quản lý (Hỗ trợ gửi Ảnh/File & Ctrl + V)</p>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="card-title">🔐 Xác Thực Tài Khoản</div>
+                        <div style="background: #f1f5f9; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                            Trạng thái hiện tại: <strong id="userStatusText" style="color: var(--danger);">Chưa đăng nhập</strong>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button onclick="loginWithZalo()" class="btn btn-primary" style="width: 100%; padding: 12px; background: #0068ff; margin-bottom: 15px;">
+                            <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M24 4C12.95 4 4 11.95 4 21.75C4 26.85 7.05 31.35 11.85 34.4C11.35 36.25 10.05 39.55 8.1 41.65C7.8 41.95 8.05 42.45 8.45 42.35C13.25 41.15 17.05 38.95 18.9 37.8C20.55 38.25 22.25 38.5 24 38.5C35.05 38.5 44 30.55 44 20.75C44 10.95 35.05 4 24 4Z" fill="white"/></svg>
+                            Đăng Nhập Bằng Zalo
+                        </button>
+                        <div class="form-group">
+                            <label>Tên Người Gửi (Đang hiển thị)</label>
+                            <input type="text" id="chatSenderName" value="Kỹ sư CNC" class="form-control" oninput="updateSenderName()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title" style="justify-content: space-between;">
+                        <span>💬 Chat Nội Bộ Ca Sản Xuất</span>
+                        <span class="badge badge-success">Trực tuyến</span>
+                    </div>
+
+                    <div id="chatMessages" class="chat-box"></div>
+
+                    <div id="replyBanner">
+                        <span>Đang trả lời: <strong id="replyTargetText">...</strong></span>
+                        <button type="button" onclick="cancelReply()" style="border:none; background:none; cursor:pointer; font-weight:bold; color:red;">✕</button>
+                    </div>
+
+                    <form id="chatForm" style="display: flex; gap: 8px; margin-top: 12px; align-items: center;">
+                        <label for="chatFileInput" class="btn" style="background: #e2e8f0; color: #334155; padding: 8px 12px; cursor: pointer; border: 1px solid var(--border);" title="Đính kèm Ảnh hoặc File">
+                            📎
+                        </label>
+                        <input type="file" id="chatFileInput" style="display: none;" onchange="handleFileUpload(event)">
+
+                        <input type="text" id="chatInput" placeholder="Nhập tin nhắn hoặc Ctrl+V dán ảnh..." class="form-control" autocomplete="off">
+                        <button type="submit" class="btn btn-primary">Gửi</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- PHẦN 5: QUẢN TRỊ & PHÂN QUYỀN ĐỘNG -->
+        <section id="tab-admin" class="tab-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">🔒 Quản Trị & Thay Đổi Phân Quyền Trực Tiếp</h1>
+                    <p class="page-subtitle">Chỉnh sửa mật khẩu và phân quyền chi tiết cho từng nhóm ngay trên giao diện</p>
+                </div>
+                <button onclick="saveAdminSettings()" class="btn btn-success">💾 Lưu Lại Thay Đổi</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">⚙️ Bảng Cấu Hình Nhóm, Mật Khẩu & Quyền Hạn</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nhóm Phòng Ban</th>
+                                <th>Đổi Mật Khẩu</th>
+                                <th style="text-align: center;">Chế Độ Cắt CNC</th>
+                                <th style="text-align: center;">Xem Tiến Độ</th>
+                                <th style="text-align: center;">Sửa Tiến Độ</th>
+                                <th style="text-align: center;">Quản Lý Kho</th>
+                                <th style="text-align: center;">Quản Trị Nhóm</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminRoleTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- LIGHTBOX MODAL ĐỂ XEM HÌNH ẢNH TO -->
+    <div id="imgModal" class="modal-overlay" onclick="closeImageModal()">
+        <span class="modal-close" onclick="closeImageModal()">&times;</span>
+        <img id="modalImgContent" class="modal-img" src="" alt="Hình ảnh phóng to">
+    </div>
+
+    <script>
+        // --- HỆ THỐNG QUẢN LÝ DỮ LIỆU PHÂN QUYỀN (LƯU LOCALSTORAGE) ---
+        const defaultRoles = {
+            admin: {
+                name: "Quản Trị Viên (Admin)",
+                password: "admin123",
+                tabs: ['cnc', 'schedule', 'inventory', 'chat', 'admin'],
+                canEditSchedule: true,
+                canEditInventory: true
+            },
+            thietke: {
+                name: "Nhóm Thiết Kế (Design)",
+                password: "design123",
+                tabs: ['cnc', 'schedule', 'inventory', 'chat'],
+                canEditSchedule: false,
+                canEditInventory: false
+            },
+            laptrinh: {
+                name: "Nhóm Lập Trình CAM",
+                password: "cam123",
+                tabs: ['cnc', 'schedule', 'inventory', 'chat'],
+                canEditSchedule: true,
+                canEditInventory: false
+            },
+            giacong: {
+                name: "Nhóm Vận Hành Gia Công",
+                password: "cnc123",
+                tabs: ['cnc', 'schedule', 'inventory', 'chat'],
+                canEditSchedule: false,
+                canEditInventory: false
+            },
+            kho: {
+                name: "Nhóm Quản Lý Kho",
+                password: "kho123",
+                tabs: ['schedule', 'inventory', 'chat'],
+                canEditSchedule: false,
+                canEditInventory: true
+            }
+        };
+
+        function getRolesConfig() {
+            const saved = localStorage.getItem('tanphat_roles_config');
+            return saved ? JSON.parse(saved) : defaultRoles;
+        }
+
+        let currentRole = 'admin';
+
+        // Khởi tạo form đăng nhập
+        function renderLoginOptions() {
+            const roles = getRolesConfig();
+            const select = document.getElementById('loginRole');
+            select.innerHTML = Object.keys(roles).map(key => `<option value="${key}">${roles[key].name}</option>`).join('');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const roles = getRolesConfig();
+            const selectedRole = document.getElementById('loginRole').value;
+            const inputPass = document.getElementById('loginPassword').value.trim();
+
+            if (roles[selectedRole] && roles[selectedRole].password === inputPass) {
+                localStorage.setItem('tanphat_logged_role', selectedRole);
+                document.getElementById('loginScreen').style.display = 'none';
+                applyRole(selectedRole);
+                alert("✅ Đăng nhập thành công vào " + roles[selectedRole].name);
+            } else {
+                alert("❌ Mật khẩu không chính xác!");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('tanphat_logged_role');
+            document.getElementById('loginPassword').value = '';
+            renderLoginOptions();
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+
+        function applyRole(roleKey) {
+            const roles = getRolesConfig();
+            if (!roles[roleKey]) return;
+            currentRole = roleKey;
+            const roleInfo = roles[roleKey];
+
+            document.getElementById('navUserDisplay').innerText = roleInfo.name;
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const tabName = btn.getAttribute('data-permission');
+                if (roleInfo.tabs.includes(tabName)) {
+                    btn.style.display = 'flex';
+                } else {
+                    btn.style.display = 'none';
+                }
+            });
+
+            const activeTabContent = document.querySelector('.tab-content.active');
+            if (activeTabContent) {
+                const activeTabId = activeTabContent.id.replace('tab-', '');
+                if (!roleInfo.tabs.includes(activeTabId)) {
+                    switchTab(roleInfo.tabs[0]);
+                }
+            }
+
+            applyPermissionUI(roleInfo);
+            renderAdminTable();
+        }
+
+        function applyPermissionUI(roleInfo) {
+            const btnAddSched = document.getElementById('btnAddScheduleTask');
+            const schedForm = document.getElementById('scheduleFormCard');
+            if (btnAddSched) btnAddSched.style.display = roleInfo.canEditSchedule ? 'inline-flex' : 'none';
+            if (!roleInfo.canEditSchedule && schedForm) schedForm.style.display = 'none';
+
+            document.querySelectorAll('.col-sched-action').forEach(el => {
+                el.style.display = roleInfo.canEditSchedule ? 'table-cell' : 'none';
+            });
+
+            document.querySelectorAll('.restricted-warehouse-tx, .restricted-warehouse-add').forEach(el => {
+                el.style.display = roleInfo.canEditInventory ? 'block' : 'none';
+            });
+            document.querySelectorAll('.col-inv-action').forEach(el => {
+                el.style.display = roleInfo.canEditInventory ? 'table-cell' : 'none';
+            });
+        }
+
+        // Render bảng quản trị động
+        function renderAdminTable() {
+            const roles = getRolesConfig();
+            const tbody = document.getElementById('adminRoleTableBody');
+            if (!tbody) return;
+
+            tbody.innerHTML = Object.keys(roles).map(key => {
+                const r = roles[key];
+                return `
+                    <tr>
+                        <td><strong>${r.name}</strong></td>
+                        <td><input type="text" id="pass_${key}" value="${r.password}" class="form-control" style="max-width: 150px; padding: 4px 8px;"></td>
+                        <td style="text-align: center;"><input type="checkbox" id="tab_cnc_${key}" ${r.tabs.includes('cnc') ? 'checked' : ''}></td>
+                        <td style="text-align: center;"><input type="checkbox" id="tab_sched_${key}" ${r.tabs.includes('schedule') ? 'checked' : ''}></td>
+                        <td style="text-align: center;"><input type="checkbox" id="edit_sched_${key}" ${r.canEditSchedule ? 'checked' : ''}></td>
+                        <td style="text-align: center;"><input type="checkbox" id="edit_inv_${key}" ${r.canEditInventory ? 'checked' : ''}></td>
+                        <td style="text-align: center;"><input type="checkbox" id="tab_admin_${key}" ${r.tabs.includes('admin') ? 'checked' : ''}></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function saveAdminSettings() {
+            const roles = getRolesConfig();
+            Object.keys(roles).forEach(key => {
+                const passInput = document.getElementById(`pass_${key}`);
+                if (passInput) roles[key].password = passInput.value.trim();
+
+                const cncChecked = document.getElementById(`tab_cnc_${key}`).checked;
+                const schedChecked = document.getElementById(`tab_sched_${key}`).checked;
+                const invChecked = document.getElementById(`edit_inv_${key}`).checked; // Kho tương đương edit inventory
+                const adminChecked = document.getElementById(`tab_admin_${key}`).checked;
+
+                // Cập nhật danh sách các tab được phép
+                let newTabs = ['chat']; // Chat luôn có
+                if (cncChecked) newTabs.push('cnc');
+                if (schedChecked) newTabs.push('schedule');
+                if (invChecked) newTabs.push('inventory');
+                if (adminChecked) newTabs.push('admin');
+                roles[key].tabs = newTabs;
+
+                roles[key].canEditSchedule = document.getElementById(`edit_sched_${key}`).checked;
+                roles[key].canEditInventory = invChecked;
+            });
+
+            localStorage.setItem('tanphat_roles_config', JSON.stringify(roles));
+            alert("✅ Đã lưu cấu hình phân quyền và mật khẩu thành công!");
+            applyRole(currentRole);
+        }
+
+        // --- NAV TABS SWITCHER ---
+        function switchTab(tabId, event) {
+            const roles = getRolesConfig();
+            const roleInfo = roles[currentRole];
+            if (!roleInfo.tabs.includes(tabId)) {
+                alert("⚠️ Tài khoản nhóm của bạn không có quyền truy cập vào mục này!");
+                return;
+            }
+
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    if(btn.getAttribute('data-permission') === tabId) btn.classList.add('active');
+                });
+            }
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        }
+
+        // --- CÁC MODULE CHỨC NĂNG (CNC, TIẾN ĐỘ, KHO, CHAT) ---
+        function calculateCNC() {
+            const D = parseFloat(document.getElementById('cncD').value) || 0;
+            const Vc = parseFloat(document.getElementById('cncVc').value) || 0;
+            const Z = parseFloat(document.getElementById('cncZ').value) || 0;
+            const Fz = parseFloat(document.getElementById('cncFz').value) || 0;
+
+            if (D > 0) {
+                const n = Math.round((Vc * 1000) / (Math.PI * D));
+                const F = Math.round(n * Fz * Z);
+                document.getElementById('resN').innerText = n.toLocaleString('vi-VN');
+                document.getElementById('resF').innerText = F.toLocaleString('vi-VN');
+            }
+        }
+
+        const defaultSchedule = [
+            { code: "CAV-01", name: "Phay thô Lòng khuôn", machine: "Phay CNC Makino", tech: "Nguyễn Văn A", time: "24/10 - 26/10", status: "Hoàn thành" }
+        ];
+        if (!localStorage.getItem('moldScheduleData')) localStorage.setItem('moldScheduleData', JSON.stringify(defaultSchedule));
+
+        function toggleAddScheduleForm() {
+            const formCard = document.getElementById('scheduleFormCard');
+            formCard.style.display = formCard.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function renderSchedule() {
+            const data = JSON.parse(localStorage.getItem('moldScheduleData')) || [];
+            const tbody = document.getElementById('scheduleTableBody');
+            const roles = getRolesConfig();
+            const roleInfo = roles[currentRole];
+            
+            tbody.innerHTML = data.map((item, index) => {
+                const actionButtons = roleInfo.canEditSchedule ? `
+                    <td style="text-align: center;" class="col-sched-action">
+                        <button class="btn btn-sm" style="border:1px solid #cbd5e1; background:white;" onclick="toggleScheduleStatus(${index})">Đổi TT</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteScheduleTask(${index})">Xóa</button>
+                    </td>
+                ` : `<td style="text-align: center; display: none;" class="col-sched-action"></td>`;
+
+                return `
+                    <tr>
+                        <td style="font-weight: 600;">${item.code}</td>
+                        <td>${item.name}</td>
+                        <td>${item.machine}</td>
+                        <td>${item.tech}</td>
+                        <td>${item.time}</td>
+                        <td><span class="badge badge-success">${item.status}</span></td>
+                        ${actionButtons}
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('addPlanForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = JSON.parse(localStorage.getItem('moldScheduleData')) || [];
+            data.push({
+                code: document.getElementById('pCode').value,
+                name: document.getElementById('pName').value,
+                machine: document.getElementById('pMachine').value,
+                tech: document.getElementById('pTech').value,
+                time: document.getElementById('pTime').value,
+                status: document.getElementById('pStatus').value
+            });
+            localStorage.setItem('moldScheduleData', JSON.stringify(data));
+            this.reset();
+            renderSchedule();
+        });
+
+        const defaultInventory = [
+            { code: "SKD61-100", name: "Thép SKD61", category: "Thép / Phôi", init: 50, inQty: 20, outQty: 10, unit: "Kg", minLimit: 20 }
+        ];
+        if (!localStorage.getItem('moldInventoryData')) localStorage.setItem('moldInventoryData', JSON.stringify(defaultInventory));
+
+        function renderInventory() {
+            const data = JSON.parse(localStorage.getItem('moldInventoryData')) || [];
+            const txSelect = document.getElementById('txItemCode');
+            if(txSelect) txSelect.innerHTML = data.map(i => `<option value="${i.code}">${i.code} - ${i.name}</option>`).join('');
+
+            document.getElementById('inventoryTableBody').innerHTML = data.map((item, index) => {
+                const stock = item.init + item.inQty - item.outQty;
+                return `
+                    <tr>
+                        <td style="font-weight: 600;">${item.code}</td>
+                        <td>${item.name}</td>
+                        <td>${item.category}</td>
+                        <td style="text-align: center;">${item.init} ${item.unit}</td>
+                        <td style="text-align: center;">+${item.inQty}</td>
+                        <td style="text-align: center;">-${item.outQty}</td>
+                        <td style="text-align: center; font-weight: 700;">${stock} ${item.unit}</td>
+                        <td style="text-align: center;"><span class="badge badge-success">An Toàn</span></td>
+                        <td style="text-align: center;" class="col-inv-action">
+                            <button class="btn btn-sm btn-danger" onclick="deleteInventoryItem(${index})">Xóa</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Khởi tạo hệ thống
+        window.addEventListener('DOMContentLoaded', () => {
+            renderLoginOptions();
+            const savedRole = localStorage.getItem('tanphat_logged_role');
+            if (savedRole && getRolesConfig()[savedRole]) {
+                document.getElementById('loginScreen').style.display = 'none';
+                applyRole(savedRole);
+            } else {
+                document.getElementById('loginScreen').style.display = 'flex';
+            }
+
+            calculateCNC();
+            renderSchedule();
+            renderInventory();
+        });
+    </script>
+</body>
+</html>
