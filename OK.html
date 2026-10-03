@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client-Side Data Encryptor & Vault</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Local Offline QR Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            900: '#052e16',
+                            950: '#022c22'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(34, 197, 94, 0.3);
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(34, 197, 94, 0.6);
+        }
+        .glow-border {
+            box-shadow: 0 0 20px -5px rgba(34, 197, 94, 0.2);
+        }
+        .tab-btn.active {
+            border-color: #22c55e;
+            color: #4ade80;
+            background-color: rgba(34, 197, 94, 0.1);
+        }
+        #qr-canvas-container canvas, #sync-qr-canvas-container canvas {
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 font-sans flex flex-col overflow-x-hidden custom-scrollbar selection:bg-emerald-500 selection:text-slate-950">
+
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-4 py-3 sm:px-6">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-user-shield text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-bold text-base sm:text-lg tracking-tight text-white">Client Crypto Vault</h1>
+                        <span class="px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">100% Offline</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Mã hóa dữ liệu bảo mật AES-256-GCM trực tiếp trên trình duyệt</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 text-xs">
+                <div class="hidden md:flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-400">
+                    <i class="fa-solid fa-lock text-emerald-400"></i>
+                    <span>Web Crypto API (SubtleCrypto)</span>
+                </div>
+                <button id="btn-purge" class="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 rounded-lg transition font-medium flex items-center space-x-1.5 active:scale-95 cursor-pointer">
+                    <i class="fa-solid fa-broom text-xs"></i>
+                    <span>Xóa Sạch Dữ Liệu</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
+        
+        <!-- Security Guarantee Alert Banner -->
+        <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-300 text-xs sm:text-sm">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-shield-halved text-2xl text-emerald-400 shrink-0"></i>
+                <div>
+                    <span class="font-semibold text-white">An toàn tuyệt đối:</span> Dữ liệu của bạn không bao giờ rời khỏi thiết bị này. Mọi thuật toán băm (PBKDF2) và mã hóa (AES-GCM) được thực thi cục bộ trong RAM.
+                </div>
+            </div>
+        </div>
+
+        <!-- Secure Context Warning -->
+        <div id="crypto-warning" class="hidden bg-rose-950/40 border border-rose-500/40 rounded-xl p-4 text-rose-300 text-xs sm:text-sm items-center space-x-3">
+            <i class="fa-solid fa-triangle-exclamation text-2xl text-rose-400 shrink-0"></i>
+            <div>
+                <span class="font-semibold text-white">Cảnh báo môi trường:</span> Trình duyệt hiện tại không hỗ trợ WebCrypto API (`window.crypto.subtle`). Vui lòng mở ứng dụng qua giao thức **HTTPS** hoặc **localhost**.
+            </div>
+        </div>
+
+        <div class="flex border-b border-slate-800 overflow-x-auto custom-scrollbar gap-1 text-xs sm:text-sm font-medium">
+            <button data-tab="tab-text" class="tab-btn active px-4 py-3 rounded-t-xl border-b-2 border-transparent hover:text-emerald-400 transition flex items-center space-x-2 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-key"></i>
+                <span>Mã Hóa / Giải Mã Văn Bản</span>
+            </button>
+            <button data-tab="tab-file" class="tab-btn px-4 py-3 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-emerald-400 transition flex items-center space-x-2 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-file-shield"></i>
+                <span>Mã Hóa Tập Tin (File)</span>
+            </button>
+            <button data-tab="tab-encode" class="tab-btn px-4 py-3 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-emerald-400 transition flex items-center space-x-2 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-code"></i>
+                <span>Biến Đổi (Base64 / Hex / URL)</span>
+            </button>
+            <button data-tab="tab-stego" class="tab-btn px-4 py-3 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-emerald-400 transition flex items-center space-x-2 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-eye-slash"></i>
+                <span>Mã Hóa Ẩn Tin (Invisible Text)</span>
+            </button>
+            <button data-tab="tab-sync" class="tab-btn px-4 py-3 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-amber-400 transition flex items-center space-x-2 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-rotate text-amber-400"></i>
+                <span>Đồng Bộ Cloud Multi-Device</span>
+            </button>
+            <button data-tab="tab-self-exec" class="tab-btn px-4 py-3 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-emerald-400 transition flex items-center space-x-2 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-play text-emerald-400"></i>
+                <span>Tạo HTML Tự Giải Mã & Tự Chạy</span>
+            </button>
+            <button data-tab="tab-online" class="tab-btn px-4 py-3 rounded-t-xl border-b-2 border-transparent text-slate-400 hover:text-cyan-400 transition flex items-center space-x-2 whitespace-nowrap cursor-pointer">
+                <i class="fa-solid fa-globe text-cyan-400"></i>
+                <span>Đẩy Lên Chạy Online</span>
+            </button>
+        </div>
+
+        <!-- TAB 1: TEXT ENCRYPTION -->
+        <section id="tab-text" class="tab-content flex flex-col gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Input Panel -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 glow-border">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h2 class="font-bold text-white flex items-center gap-2 text-sm sm:text-base">
+                            <i class="fa-solid fa-pen-to-square text-emerald-400"></i>
+                            Dữ Liệu Đầu Vào (Plaintext / Ciphertext)
+                        </h2>
+                        <div class="flex items-center space-x-2">
+                            <button id="btn-paste-text" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition">
+                                <i class="fa-regular fa-paste"></i> Dán
+                            </button>
+                            <button id="btn-clear-text-input" class="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 transition">
+                                <i class="fa-solid fa-xmark"></i> Xóa
+                            </button>
+                        </div>
+                    </div>
+
+                    <textarea id="text-input" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 font-mono text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 resize-none custom-scrollbar" placeholder="Nhập văn bản cần mã hóa hoặc dán chuỗi Ciphertext cần giải mã..."></textarea>
+
+                    <div class="space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                        <div class="flex items-center justify-between">
+                            <label for="text-password" class="text-xs font-semibold text-slate-300">Mật Mã Khóa (Passphrase):</label>
+                            <button id="btn-gen-pass" class="text-[11px] text-emerald-400 hover:underline flex items-center gap-1">
+                                <i class="fa-solid fa-key"></i> Tạo ngẫu nhiên
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input type="password" id="text-password" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-mono text-slate-100 pr-10 focus:outline-none focus:border-emerald-500/50" placeholder="Nhập mật khẩu bí mật...">
+                            <button id="toggle-pass-visibility" type="button" class="absolute right-3 top-3 text-slate-400 hover:text-slate-200">
+                                <i id="icon-pass-eye" class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-1">
+                            <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                <div id="pass-strength-bar" class="h-full w-0 transition-all duration-300"></div>
+                            </div>
+                            <p id="pass-strength-text" class="text-[10px] text-slate-400">Độ mạnh mật khẩu: Chưa nhập</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <button id="btn-encrypt-text" class="py-3 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-emerald-600/20 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-lock"></i>
+                            <span>MÃ HÓA (Encrypt)</span>
+                        </button>
+                        <button id="btn-decrypt-text" class="py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-indigo-600/20 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-lock-open"></i>
+                            <span>GIẢI MÃ (Decrypt)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Output Panel -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h2 class="font-bold text-white flex items-center gap-2 text-sm sm:text-base">
+                            <i class="fa-solid fa-square-poll-vertical text-emerald-400"></i>
+                            Kết Quả Xuất
+                        </h2>
+                        <div class="flex items-center space-x-2">
+                            <button id="btn-copy-output" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition">
+                                <i class="fa-regular fa-copy"></i> Sao chép
+                            </button>
+                            <button id="btn-download-output" class="text-xs text-slate-400 hover:text-cyan-400 flex items-center gap-1 transition">
+                                <i class="fa-solid fa-download"></i> Tải .txt
+                            </button>
+                            <button id="btn-clear-text-output" class="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 transition">
+                                <i class="fa-solid fa-xmark"></i> Xóa
+                            </button>
+                        </div>
+                    </div>
+
+                    <textarea id="text-output" readonly rows="9" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 font-mono text-xs sm:text-sm text-emerald-400 focus:outline-none resize-none custom-scrollbar" placeholder="Kết quả sau khi Mã hóa hoặc Giải mã sẽ xuất hiện ở đây..."></textarea>
+
+                    <div class="bg-slate-950/80 rounded-xl p-3.5 border border-slate-800 text-[11px] font-mono space-y-1.5 text-slate-400">
+                        <div class="flex justify-between border-b border-slate-800/80 pb-1">
+                            <span>Thuật toán: <strong class="text-slate-200">AES-GCM 256-bit</strong></span>
+                            <span>PBKDF2 Iterations: <strong class="text-slate-200">100,000</strong></span>
+                        </div>
+                        <div class="flex justify-between truncate">
+                            <span>Salt Băm: <span id="param-salt" class="text-slate-300">--</span></span>
+                        </div>
+                        <div class="flex justify-between truncate">
+                            <span>IV Vector: <span id="param-iv" class="text-slate-300">--</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: FILE ENCRYPTION -->
+        <section id="tab-file" class="tab-content hidden flex-col gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-3xl mx-auto w-full flex flex-col gap-6 glow-border">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-file-shield text-emerald-400"></i>
+                        Mã Hóa & Giải Mã Tập Tin (File Security)
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Mã hóa mọi định dạng file (Hình ảnh, PDF, Word, Video...) thành file mã hóa `.enc` bảo mật cao.</p>
+                </div>
+
+                <div id="file-dropzone" class="border-2 border-dashed border-slate-700 hover:border-emerald-500 rounded-2xl p-8 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950 transition flex flex-col items-center justify-center gap-3">
+                    <input type="file" id="file-input-element" class="hidden">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-2xl shadow-inner">
+                        <i id="file-icon-display" class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <div>
+                        <p id="selected-file-info" class="text-sm font-semibold text-slate-200">Nhấp để chọn hoặc kéo thả file vào đây</p>
+                        <p class="text-xs text-slate-500 mt-1">Hỗ trợ mọi loại tập tin không giới hạn dung lượng local</p>
+                    </div>
+                    <button type="button" id="btn-remove-file" class="hidden text-xs text-rose-400 hover:underline">Xóa file đã chọn</button>
+                </div>
+
+                <div class="space-y-2 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                    <label for="file-password" class="text-xs font-semibold text-slate-300">Mật khẩu khóa tập tin:</label>
+                    <input type="password" id="file-password" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-emerald-500/50" placeholder="Đặt mật khẩu mã hóa / giải mã file...">
+                </div>
+
+                <div id="file-progress-container" class="hidden space-y-2">
+                    <div class="flex justify-between text-xs font-medium">
+                        <span id="file-progress-status" class="text-slate-300">Đang xử lý...</span>
+                        <span id="file-progress-percent" class="text-emerald-400 font-mono">0%</span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                        <div id="file-progress-bar" class="h-full bg-emerald-500 w-0 transition-all duration-200"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="btn-encrypt-file" class="py-3 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs sm:text-sm transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer">
+                        <i class="fa-solid fa-file-lock"></i>
+                        <span>Mã Hóa File (.enc)</span>
+                    </button>
+                    <button id="btn-decrypt-file" class="py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs sm:text-sm transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer">
+                        <i class="fa-solid fa-file-circle-check"></i>
+                        <span>Giải Mã File Gốc</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: ENCODING & TRANSFORM -->
+        <section id="tab-encode" class="tab-content hidden flex-col gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-4xl mx-auto w-full flex flex-col gap-5">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-code text-emerald-400"></i>
+                        Biến Đổi & Mã Hóa Định Dạng (Encoding Utilities)
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Chuyển đổi văn bản sang Base64, Hexadecimal, URL Encoding nhanh chóng.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-semibold text-slate-300">Đầu vào:</label>
+                            <button id="btn-clear-encode" class="text-xs text-slate-400 hover:text-rose-400">Xóa</button>
+                        </div>
+                        <textarea id="encode-input" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 resize-none custom-scrollbar" placeholder="Nhập chuỗi cần mã hóa/mở mã hóa..."></textarea>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-semibold text-slate-300">Đầu ra:</label>
+                            <button id="btn-copy-encode" class="text-xs text-slate-400 hover:text-emerald-400">Sao chép</button>
+                        </div>
+                        <textarea id="encode-output" readonly rows="7" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-emerald-400 focus:outline-none resize-none custom-scrollbar" placeholder="Kết quả xuất ở đây..."></textarea>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+                    <button id="btn-enc-b64" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition">Base64 Encode</button>
+                    <button id="btn-dec-b64" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition">Base64 Decode</button>
+                    <button id="btn-enc-hex" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition">HEX Encode</button>
+                    <button id="btn-dec-hex" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition">HEX Decode</button>
+                    <button id="btn-enc-url" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition">URL Encode</button>
+                    <button id="btn-dec-url" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition">URL Decode</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: STEGANOGRAPHY -->
+        <section id="tab-stego" class="tab-content hidden flex-col gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-3xl mx-auto w-full flex flex-col gap-5">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user-ninja text-emerald-400"></i>
+                        Giấu Văn Bản Mật Trong Câu Nói Thường (Zero-Width Steganography)
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Giấu thông điệp bí mật vào trong một câu văn bình thường bằng các ký tự không có độ rộng (Invisible Unicode Characters).</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300">1. Đoạn văn vỏ bọc (Nhìn thấy bình thường):</label>
+                    <input type="text" id="stego-cover" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/50" value="Hôm nay trời đẹp quá, chúc bạn một ngày làm việc vui vẻ!">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300">2. Thông điệp BÍ MẬT cần giấu:</label>
+                    <input type="text" id="stego-secret" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-emerald-400 font-mono focus:outline-none focus:border-emerald-500/50" placeholder="Nhập tin nhắn bí mật cần giấu...">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btn-stego-hide" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs active:scale-95 cursor-pointer">Giấu Tin Vào Đoạn Văn</button>
+                    <button id="btn-stego-reveal" class="py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs active:scale-95 cursor-pointer">Trích Xuất Tin Ẩn</button>
+                </div>
+
+                <div class="space-y-2 pt-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-semibold text-slate-300">Kết quả Văn Bản Chứa Tin Ẩn:</label>
+                        <button id="btn-stego-copy" class="text-xs text-slate-400 hover:text-emerald-400">Sao chép kết quả</button>
+                    </div>
+                    <textarea id="stego-output" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-sm text-slate-200 resize-none focus:outline-none" placeholder="Đoạn văn sau khi đã được chèn ký tự ẩn..."></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: CLOUD SYNC -->
+        <section id="tab-sync" class="tab-content hidden flex-col gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-4xl mx-auto w-full flex flex-col gap-6 glow-border">
+                <div class="border-b border-slate-800 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-amber-400"></i>
+                            Đồng Bộ Dữ Liệu Mã Hóa Đa Thiết Bị (Zero-Knowledge Sync)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Dữ liệu được mã hóa AES-256 trên thiết bị trước khi gửi lên Cloud. Chỉ thiết bị có đúng Mật Mã Mở Khóa mới xem được.</p>
+                    </div>
+                    <div id="sync-status-badge" class="px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded-full text-xs font-semibold flex items-center gap-2 shrink-0">
+                        <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                        <span>Chưa Kết Nối Phòng</span>
+                    </div>
+                </div>
+
+                <!-- Sync Room Config Block -->
+                <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center">
+                                <label for="sync-room-id" class="text-xs font-semibold text-slate-300">1. Mã Khai Thác / Mã Phòng Đồng Bộ (Room ID):</label>
+                                <button id="btn-gen-room-id" type="button" class="text-[11px] text-amber-400 hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-shuffle"></i>
+                                    <span>Tạo phòng ngẫu nhiên</span>
+                                </button>
+                            </div>
+                            <input type="text" id="sync-room-id" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm font-mono text-amber-300 focus:outline-none focus:border-amber-500/50" placeholder="Ví dụ: my-vault-room-8888">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label for="sync-room-pass" class="text-xs font-semibold text-slate-300">2. Mật Khẩu Mã Hóa Phòng (End-to-End Passphrase):</label>
+                            <input type="password" id="sync-room-pass" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm font-mono text-slate-100 focus:outline-none focus:border-amber-500/50" placeholder="Mật khẩu bảo vệ dữ liệu phòng...">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+                        <div class="flex items-center space-x-2">
+                            <button id="btn-connect-room" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                                <i class="fa-solid fa-plug"></i>
+                                <span>Kết Nối Đồng Bộ Realtime</span>
+                            </button>
+                            <button id="btn-share-room-qr" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                                <i class="fa-solid fa-qrcode text-amber-400"></i>
+                                <span>Chia Sẻ Quét QR Điện Thoại</span>
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-500">Mở trang này trên điện thoại & nhập cùng Mã Phòng + Mật Khẩu để đồng bộ tức thì.</p>
+                    </div>
+
+                    <!-- Sync Room QR Drawer -->
+                    <div id="sync-qr-box" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center gap-3">
+                        <div id="sync-qr-canvas-container" class="p-3 bg-white rounded-xl shadow-lg"></div>
+                        <p class="text-[11px] text-slate-300 text-center">Quét bằng Điện Thoại để tham gia nhanh phòng đồng bộ bảo mật!</p>
+                    </div>
+                </div>
+
+                <!-- Add Item Form -->
+                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-plus text-emerald-400"></i>
+                        Thêm Dữ Liệu Mã Hóa Mới Vào Cloud
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <input type="text" id="sync-item-title" class="sm:col-span-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/50" placeholder="Tiêu đề (VD: Mật khẩu WiFi, Token API, Ghi chú bảo mật...)">
+                        <select id="sync-item-category" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50">
+                            <option value="mật khẩu">🔑 Mật Khẩu</option>
+                            <option value="ghi chú">📝 Ghi Chú</option>
+                            <option value="token">🛡️ Token / Khóa Secret</option>
+                            <option value="khác">📁 Khác</option>
+                        </select>
+                    </div>
+                    <textarea id="sync-item-content" rows="3" class="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 resize-none custom-scrollbar" placeholder="Nội dung cần mã hóa & đồng bộ sang thiết bị khác..."></textarea>
+                    
+                    <div class="flex justify-end">
+                        <button id="btn-push-sync-item" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Mã Hóa & Đẩy Lên Cloud Đồng Bộ</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Synced Vault Items List -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-check text-amber-400"></i>
+                            Danh Sách Mục Đã Đồng Bộ (<span id="sync-item-count" class="text-amber-400">0</span>)
+                        </h3>
+                        <button id="btn-refresh-sync" class="text-xs text-slate-400 hover:text-amber-400 flex items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            <span>Tải lại</span>
+                        </button>
+                    </div>
+
+                    <div id="sync-items-container" class="grid grid-cols-1 gap-3 min-h-[150px]">
+                        <div class="bg-slate-950/40 border border-slate-800 border-dashed rounded-xl p-8 text-center text-slate-500 text-xs">
+                            Vui lòng nhập Mã Phòng & Mật Khẩu rồi nhấn <strong class="text-slate-300">"Kết Nối Đồng Bộ"</strong> để tải dữ liệu phòng!
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 6: SELF-EXECUTING HTML CREATOR -->
+        <section id="tab-self-exec" class="tab-content hidden flex-col gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-3xl mx-auto w-full flex flex-col gap-5 glow-border">
+                <div class="border-b border-slate-800 pb-3 space-y-1">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-rocket text-emerald-400"></i>
+                        Tạo File HTML Mã Hóa Tự Mở Khóa & Chạy Trang Web
+                    </h2>
+                    <p class="text-xs text-slate-400">Đóng gói file HTML bất kỳ thành file mã hóa AES-256. Bạn có thể chọn bắt buộc nhập mật khẩu hoặc tự động chạy ngay khi mở.</p>
+                </div>
+
+                <!-- HTML File Upload Dropzone -->
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300">1. Chọn file HTML từ máy tính (Hoặc dán mã vào ô bên dưới):</label>
+                    <div id="self-file-dropzone" class="border border-dashed border-slate-700 hover:border-emerald-500/60 rounded-xl p-4 text-center cursor-pointer bg-slate-950/50 hover:bg-slate-950 transition flex items-center justify-between px-5">
+                        <input type="file" id="self-exec-file-input" accept=".html,.htm" class="hidden">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-file-code text-2xl text-emerald-400"></i>
+                            <div class="text-left">
+                                <p class="text-xs font-semibold text-slate-200" id="self-file-label">Nhấp để chọn file `.html` cần mã hóa</p>
+                                <p class="text-[10px] text-slate-500">Hỗ trợ mọi trang web HTML/CSS/JS đơn tệp</p>
+                            </div>
+                        </div>
+                        <button type="button" id="btn-browse-html" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg font-medium cursor-pointer">
+                            Chọn File
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300">2. Tiêu đề ứng dụng (App Title hiển thị ở màn hình khóa / tiêu đề trang):</label>
+                    <input type="text" id="self-exec-title" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500/50" value="Ứng Dụng Bảo Mật - Secure Web App">
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-semibold text-slate-300">3. Nội dung mã HTML / CSS / JS cần bảo vệ:</label>
+                        <button id="btn-clear-self-code" class="text-xs text-slate-400 hover:text-rose-400">Xóa mã</button>
+                    </div>
+                    <textarea id="self-exec-code" rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 resize-none custom-scrollbar" placeholder="Dán mã HTML/JS của bạn vào đây hoặc tải file ở bước 1..."></textarea>
+                </div>
+
+                <!-- Mode Selection Option -->
+                <div class="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                    <label class="text-xs font-semibold text-slate-300 block">4. Chế độ mở khóa khi mở tệp HTML xuất ra:</label>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="flex items-start p-3 border border-slate-800 bg-slate-900 rounded-xl cursor-pointer hover:border-emerald-500/50 transition">
+                            <input type="radio" name="lock-mode" value="password" checked class="mt-0.5 text-emerald-500 focus:ring-emerald-500">
+                            <div class="ml-2.5">
+                                <span class="text-xs font-semibold text-slate-200 block">🔒 Yêu cầu mật khẩu</span>
+                                <span class="text-[11px] text-slate-400 block mt-0.5">Người dùng phải nhập đúng mật khẩu mới xem/chạy được trang web.</span>
+                            </div>
+                        </label>
+                        
+                        <label class="flex items-start p-3 border border-slate-800 bg-slate-900 rounded-xl cursor-pointer hover:border-emerald-500/50 transition">
+                            <input type="radio" name="lock-mode" value="auto" class="mt-0.5 text-emerald-500 focus:ring-emerald-500">
+                            <div class="ml-2.5">
+                                <span class="text-xs font-semibold text-slate-200 block">⚡ Tự động chạy (Không hỏi mật khẩu)</span>
+                                <span class="text-[11px] text-slate-400 block mt-0.5">Mã nguồn vẫn được mã hóa AES, nhưng tự động giải mã & chạy ngay khi mở.</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Password Container -->
+                    <div id="pass-input-container" class="space-y-2 pt-2">
+                        <label for="self-exec-pass" class="text-xs font-semibold text-slate-300">Nhập mật khẩu khóa file:</label>
+                        <input type="password" id="self-exec-pass" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm font-mono text-slate-100 focus:outline-none focus:border-emerald-500/50" placeholder="Đặt mật khẩu bảo vệ file...">
+                    </div>
+                </div>
+
+                <button id="btn-build-self-exec" class="py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl shadow-lg transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer">
+                    <i class="fa-solid fa-file-export"></i>
+                    <span>Tạo & Tải File HTML Tự Chạy (.html)</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 7: ONLINE DEPLOYMENT -->
+        <section id="tab-online" class="tab-content hidden flex-col gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-3xl mx-auto w-full flex flex-col gap-6 glow-border">
+                <div class="border-b border-slate-800 pb-3 space-y-1">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-cyan-400"></i>
+                        Đẩy Lên Chạy Online & Chia Sẻ Web App
+                    </h2>
+                    <p class="text-xs text-slate-400">Biến ứng dụng Web HTML mã hóa thành đường dẫn web có thể truy cập & thực thi online trên mọi trình duyệt mà không cần mua domain/hosting.</p>
+                </div>
+
+                <!-- Input Selection -->
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300">1. Nhập mã HTML ứng dụng cần phát hành online:</label>
+                    <textarea id="online-html-input" rows="5" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 resize-none custom-scrollbar" placeholder="Dán mã HTML mã hóa tự chạy (hoặc dùng mã đã phát sinh từ tab trước)..."></textarea>
+                    <div class="flex justify-between items-center text-xs text-slate-400">
+                        <span>Dung lượng mã: <strong id="online-code-size" class="text-cyan-400">0 KB</strong></span>
+                        <button id="btn-use-last-generated" class="text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Dùng mã vừa tạo từ tab 'HTML Tự Chạy'</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Mode Options Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Option 1: Permanent Compressed URL -->
+                    <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3 hover:border-cyan-500/40 transition">
+                        <div class="space-y-1">
+                            <div class="flex items-center space-x-2 text-cyan-400 font-semibold text-xs sm:text-sm">
+                                <i class="fa-solid fa-bolt"></i>
+                                <span>1. Link Nén Zero-Server</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400">Nén mã HTML vào URL Hash (`#app=...`). Không cần lưu máy chủ, vĩnh viễn và chạy trực tiếp.</p>
+                        </div>
+                        <button id="btn-gen-compressed-url" class="w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5 active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-link"></i>
+                            <span>Tạo Link Chạy Ngay</span>
+                        </button>
+                    </div>
+
+                    <!-- Option 2: Cloud Hosting Upload -->
+                    <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3 hover:border-indigo-500/40 transition">
+                        <div class="space-y-1">
+                            <div class="flex items-center space-x-2 text-indigo-400 font-semibold text-xs sm:text-sm">
+                                <i class="fa-solid fa-cloud"></i>
+                                <span>2. Đẩy Lên Cloud Hosting</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400">Tải file HTML lên Cloud Public để lấy URL trang web công khai truy cập mọi lúc.</p>
+                        </div>
+                        <button id="btn-upload-cloud" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5 active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Tải Lên Cloud</span>
+                        </button>
+                    </div>
+
+                    <!-- Option 3: Netlify & GitHub Pages Guide -->
+                    <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3 hover:border-emerald-500/40 transition">
+                        <div class="space-y-1">
+                            <div class="flex items-center space-x-2 text-emerald-400 font-semibold text-xs sm:text-sm">
+                                <i class="fa-solid fa-globe"></i>
+                                <span>3. Host Website Riêng</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400">Hướng dẫn kéo-thả file `.html` lên Netlify Drop hoặc GitHub Pages để có domain tên riêng.</p>
+                        </div>
+                        <button id="btn-show-deploy-guide" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5 active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-book-open"></i>
+                            <span>Xem Hướng Dẫn</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Result Link & Action Drawer with Offline Canvas QR Code -->
+                <div id="online-result-container" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <label class="text-xs font-semibold text-cyan-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Đường dẫn truy cập ứng dụng online của bạn:</span>
+                        </label>
+                        <button id="btn-toggle-qr" class="text-xs text-amber-400 hover:underline flex items-center gap-1 font-medium cursor-pointer">
+                            <i class="fa-solid fa-qrcode"></i>
+                            <span id="qr-btn-text">Hiện Mã QR Điện Thoại</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="online-link-output" readonly class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none">
+                        <button id="btn-copy-online-link" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition flex items-center gap-1 shrink-0 cursor-pointer">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>Sao Chép</span>
+                        </button>
+                        <a id="btn-open-online-link" target="_blank" class="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-bold rounded-xl transition flex items-center gap-1 shrink-0">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span>Mở Tab Mới</span>
+                        </a>
+                    </div>
+
+                    <!-- Offline Canvas QR Container -->
+                    <div id="qr-container" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center gap-3">
+                        <div id="qr-canvas-container" class="p-3 bg-white rounded-xl shadow-lg"></div>
+                        <p id="qr-caption" class="text-[11px] text-slate-400 text-center">Quét mã bằng camera điện thoại hoặc Zalo để chạy ứng dụng trực tiếp!</p>
+                    </div>
+
+                    <div class="pt-1 flex items-center justify-between">
+                        <span class="text-[11px] text-slate-500">Bạn có thể kiểm tra thực thi trực tiếp bằng trình Sandbox bên dưới.</span>
+                        <button id="btn-run-sandbox" class="text-xs text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Chạy Thử Sandbox Trực Tiếp</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Deploy Guide Modal -->
+                <div id="deploy-guide-modal" class="hidden bg-slate-950 border border-emerald-500/30 rounded-xl p-4 text-xs text-slate-300 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h3 class="font-bold text-white text-sm text-emerald-400 flex items-center gap-2">
+                            <i class="fa-solid fa-rocket"></i>
+                            Cách Đưa Web App Lên Internet Miễn Phí Vĩnh Viễn
+                        </h3>
+                        <button id="btn-close-guide" class="text-slate-400 hover:text-rose-400"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <ol class="list-decimal list-inside space-y-2 text-slate-300">
+                        <li><strong>Cách 1 (Nhanh nhất - Netlify Drop):</strong> Truy cập <a href="https://app.netlify.com/drop" target="_blank" class="text-cyan-400 underline">app.netlify.com/drop</a>, kéo thả file HTML bạn đã xuất ở tab <em>"HTML Tự Chạy"</em> vào. Bạn sẽ nhận được 1 link web `.netlify.app` chạy online vĩnh viễn.</li>
+                        <li><strong>Cách 2 (GitHub Pages):</strong> Đưa file HTML lên repository GitHub, đặt tên file là <code class="bg-slate-900 px-1 py-0.5 rounded text-emerald-400">index.html</code> và bật <em>Pages</em> trong Settings.</li>
+                        <li><strong>Cách 3 (Vercel):</strong> Đẩy file lên Vercel CLI hoặc GitHub để nhận tên miền `.vercel.app` tốc độ cao.</li>
+                    </ol>
+                </div>
+
+                <!-- Embedded Sandbox Viewer -->
+                <div id="sandbox-modal" class="hidden border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 flex-col">
+                    <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-2 text-xs font-semibold text-slate-300">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                            <span>Trình Thực Thi Sandbox Online</span>
+                        </div>
+                        <button id="btn-close-sandbox" class="text-slate-400 hover:text-rose-400 text-xs">
+                            <i class="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+                    <iframe id="sandbox-iframe" class="w-full h-96 border-none bg-slate-950" sandbox="allow-scripts allow-forms allow-modals allow-same-origin"></iframe>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 border border-slate-700 text-slate-100 text-xs px-4 py-3 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-3 z-50">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toast-msg" class="font-medium">Thông báo</span>
+    </div>
+
+    <!-- Firebase SDK & Sync Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'client-crypto-vault-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let activeUnsubscribe = null;
+        let currentRoomId = '';
+        let currentRoomPass = '';
+
+        async function initFirebase() {
+            if (!firebaseConfig) {
+                console.warn('Firebase config unavailable for cloud sync');
+                return;
+            }
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = userCred.user;
+                } else {
+                    const userCred = await signInAnonymously(auth);
+                    currentUser = userCred.user;
+                }
+            } catch (e) {
+                console.error('Firebase Auth sync initialization error:', e);
+            }
+        }
+
+        initFirebase();
+
+        // Random Room ID Generator
+        document.getElementById('btn-gen-room-id')?.addEventListener('click', () => {
+            const randRoom = 'vault-' + Math.random().toString(36).substring(2, 8);
+            const roomEl = document.getElementById('sync-room-id');
+            if (roomEl) roomEl.value = randRoom;
+        });
+
+        // Connect & Listen to Room
+        document.getElementById('btn-connect-room')?.addEventListener('click', () => {
+            connectToSyncRoom();
+        });
+
+        document.getElementById('btn-refresh-sync')?.addEventListener('click', () => {
+            if (currentRoomId && currentRoomPass) {
+                connectToSyncRoom();
+            } else {
+                window.showToast?.('Chưa kết nối phòng nào!', true);
+            }
+        });
+
+        async function connectToSyncRoom() {
+            const roomId = document.getElementById('sync-room-id')?.value.trim();
+            const roomPass = document.getElementById('sync-room-pass')?.value.trim();
+
+            if (!roomId) return window.showToast?.('Vui lòng nhập Mã Phòng Đồng Bộ!', true);
+            if (!roomPass) return window.showToast?.('Vui lòng nhập Mật Khẩu Mã Hóa Phòng!', true);
+
+            currentRoomId = roomId;
+            currentRoomPass = roomPass;
+
+            if (!db || !currentUser) {
+                return window.showToast?.('Máy chủ Cloud đang kết nối, vui lòng thử lại sau giây lát!', true);
+            }
+
+            const badge = document.getElementById('sync-status-badge');
+            if (badge) {
+                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span class="text-emerald-400 font-bold">Đã Kết Nối: ' + roomId + '</span>';
+                badge.className = 'px-3 py-1 bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 rounded-full text-xs font-semibold flex items-center gap-2 shrink-0';
+            }
+
+            if (activeUnsubscribe) activeUnsubscribe();
+
+            const syncCollection = collection(db, 'artifacts', appId, 'public', 'data', 'vault_sync_items');
+
+            activeUnsubscribe = onSnapshot(syncCollection, async (snapshot) => {
+                const container = document.getElementById('sync-items-container');
+                const countEl = document.getElementById('sync-item-count');
+                if (!container) return;
+
+                const roomDocs = [];
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data && data.roomId === currentRoomId) {
+                        roomDocs.push({ id: docSnap.id, ...data });
+                    }
+                });
+
+                roomDocs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+                if (countEl) countEl.innerText = roomDocs.length;
+
+                if (roomDocs.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-8 text-center text-slate-500 text-xs">
+                            Chưa có mục nào trong phòng <strong class="text-amber-400">${currentRoomId}</strong>. Hãy tạo mục đầu tiên ở bảng trên!
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = '';
+
+                for (const item of roomDocs) {
+                    let decryptedText = '*** MẬT KHẨU SAI ***';
+                    let isDecrypted = false;
+
+                    try {
+                        const salt = window.base64ToBuf(item.salt);
+                        const iv = window.base64ToBuf(item.iv);
+                        const ciphertext = window.base64ToBuf(item.ciphertext);
+
+                        const decBuf = await window.decryptData(ciphertext, salt, iv, currentRoomPass);
+                        decryptedText = new TextDecoder().decode(decBuf);
+                        isDecrypted = true;
+                    } catch (e) {
+                        isDecrypted = false;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-950 border border-slate-800 hover:border-amber-500/30 rounded-xl p-4 transition space-y-2';
+
+                    const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : 'Mới đây';
+
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-0.5 text-[10px] uppercase font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded">${item.category || 'ghi chú'}</span>
+                                <h4 class="font-bold text-slate-100 text-sm">${item.title || 'Mục không tên'}</h4>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="text-[10px] text-slate-500 font-mono hidden sm:inline">${dateStr}</span>
+                                <button data-docid="${item.id}" class="btn-delete-item text-slate-500 hover:text-rose-400 p-1 transition" title="Xóa khỏi Cloud">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <textarea readonly rows="2" class="w-full bg-slate-900 border border-slate-800/80 rounded-lg p-2.5 font-mono text-xs ${isDecrypted ? 'text-emerald-400' : 'text-rose-400'} focus:outline-none resize-none custom-scrollbar">${decryptedText}</textarea>
+                            ${isDecrypted ? `
+                            <button data-text="${encodeURIComponent(decryptedText)}" class="btn-copy-synced absolute right-2 bottom-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] px-2 py-1 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer">
+                                <i class="fa-regular fa-copy"></i> Copy
+                            </button>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    container.appendChild(card);
+                }
+
+                // Delete Handlers
+                container.querySelectorAll('.btn-delete-item').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const docId = btn.getAttribute('data-docid');
+                        if (!docId || !currentUser) return;
+                        try {
+                            const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'vault_sync_items', docId);
+                            await deleteDoc(itemRef);
+                            window.showToast?.('Đã xóa mục khỏi Cloud!');
+                        } catch (err) {
+                            window.showToast?.('Lỗi khi xóa mục!', true);
+                        }
+                    });
+                });
+
+                // Copy Handlers
+                container.querySelectorAll('.btn-copy-synced').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const rawText = decodeURIComponent(btn.getAttribute('data-text') || '');
+                        window.copyToClipboard?.(rawText);
+                    });
+                });
+
+            }, (err) => {
+                console.error('Error onSnapshot sync:', err);
+            });
+
+            window.showToast?.(`Đã kết nối phòng đồng bộ: ${currentRoomId}`);
+        }
+
+        // Push New Synced Item
+        document.getElementById('btn-push-sync-item')?.addEventListener('click', async () => {
+            if (!currentRoomId || !currentRoomPass) {
+                return window.showToast?.('Vui lòng kết nối vào một Phòng Đồng Bộ trước!', true);
+            }
+
+            const title = document.getElementById('sync-item-title')?.value.trim();
+            const category = document.getElementById('sync-item-category')?.value;
+            const content = document.getElementById('sync-item-content')?.value;
+
+            if (!title) return window.showToast?.('Vui lòng nhập tiêu đề mục!', true);
+            if (!content) return window.showToast?.('Vui lòng nhập nội dung cần đồng bộ!', true);
+
+            try {
+                window.showToast?.('Đang mã hóa & đẩy dữ liệu lên Cloud...');
+
+                const enc = new TextEncoder();
+                const encResult = await window.encryptData(enc.encode(content), currentRoomPass);
+
+                const docId = 'item_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+                const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'vault_sync_items', docId);
+
+                await setDoc(itemRef, {
+                    roomId: currentRoomId,
+                    title: title,
+                    category: category || 'ghi chú',
+                    salt: window.bufToBase64(encResult.salt),
+                    iv: window.bufToBase64(encResult.iv),
+                    ciphertext: window.bufToBase64(encResult.ciphertext),
+                    createdAt: Date.now()
+                });
+
+                document.getElementById('sync-item-title').value = '';
+                document.getElementById('sync-item-content').value = '';
+
+                window.showToast?.('Đã đồng bộ mục mới lên Cloud thành công!');
+            } catch (e) {
+                console.error('Push sync item error:', e);
+                window.showToast?.('Lỗi khi tải dữ liệu lên Cloud!', true);
+            }
+        });
+
+        // Offline QR Code for Sync Room
+        document.getElementById('btn-share-room-qr')?.addEventListener('click', () => {
+            const roomId = document.getElementById('sync-room-id')?.value.trim();
+            const roomPass = document.getElementById('sync-room-pass')?.value.trim();
+
+            if (!roomId) return window.showToast?.('Vui lòng nhập Mã Phòng trước!', true);
+
+            const qrBox = document.getElementById('sync-qr-box');
+            const qrCanvasContainer = document.getElementById('sync-qr-canvas-container');
+
+            const baseUrl = window.location.href.split('#')[0];
+            const shareUrl = `${baseUrl}#room=${encodeURIComponent(roomId)}&pass=${encodeURIComponent(roomPass || '')}`;
+
+            if (qrBox && qrCanvasContainer) {
+                if (qrBox.classList.contains('hidden')) {
+                    qrCanvasContainer.innerHTML = '';
+                    if (window.QRCode) {
+                        new QRCode(qrCanvasContainer, {
+                            text: shareUrl,
+                            width: 180,
+                            height: 180,
+                            correctLevel: QRCode.CorrectLevel.M
+                        });
+                    }
+                    qrBox.classList.remove('hidden');
+                } else {
+                    qrBox.classList.add('hidden');
+                }
+            }
+        });
+
+        // Auto-join room from URL hash (#room=...&pass=...)
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash;
+            if (hash && hash.includes('#room=')) {
+                const params = new URLSearchParams(hash.substring(1));
+                const room = params.get('room');
+                const pass = params.get('pass');
+
+                if (room) {
+                    const roomInput = document.getElementById('sync-room-id');
+                    const passInput = document.getElementById('sync-room-pass');
+                    if (roomInput) roomInput.value = room;
+                    if (passInput && pass) passInput.value = pass;
+
+                    const syncTabBtn = document.querySelector('[data-tab="tab-sync"]');
+                    if (syncTabBtn) syncTabBtn.click();
+
+                    setTimeout(() => {
+                        connectToSyncRoom();
+                    }, 500);
+                }
+            }
+        });
+    </script>
+
+    <!-- Core App Logic -->
+    <script>
+        // Tab Switcher
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabTarget = btn.getAttribute('data-tab');
+                
+                tabBtns.forEach(b => {
+                    b.classList.remove('active', 'text-emerald-400');
+                    b.classList.add('text-slate-400');
+                });
+                tabContents.forEach(c => {
+                    c.classList.add('hidden');
+                    c.classList.remove('flex');
+                });
+
+                btn.classList.add('active');
+                btn.classList.remove('text-slate-400');
+                
+                const targetElement = document.getElementById(tabTarget);
+                if (targetElement) {
+                    targetElement.classList.remove('hidden');
+                    targetElement.classList.add('flex');
+                }
+            });
+        });
+
+        // Toast System
+        window.showToast = function(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            if (!toast || !toastMsg || !toastIcon) return;
+
+            toastMsg.innerText = msg;
+            toastIcon.className = isError 
+                ? 'fa-solid fa-triangle-exclamation text-rose-400 text-base' 
+                : 'fa-solid fa-circle-check text-emerald-400 text-base';
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        };
+
+        // WebCrypto Core Functions
+        window.deriveKey = async function(password, salt, iterations = 100000) {
+            const encoder = new TextEncoder();
+            const passwordBuffer = encoder.encode(password);
+
+            const baseKey = await window.crypto.subtle.importKey(
+                'raw',
+                passwordBuffer,
+                'PBKDF2',
+                false,
+                ['deriveKey']
+            );
+
+            return await window.crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: iterations,
+                    hash: 'SHA-256'
+                },
+                baseKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        };
+
+        window.encryptData = async function(dataBuffer, password) {
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const key = await window.deriveKey(password, salt);
+
+            const encryptedBuffer = await window.crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                dataBuffer
+            );
+
+            return {
+                salt: salt,
+                iv: iv,
+                ciphertext: new Uint8Array(encryptedBuffer)
+            };
+        };
+
+        window.decryptData = async function(encryptedBytes, salt, iv, password) {
+            const key = await window.deriveKey(password, salt);
+            return await window.crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                encryptedBytes
+            );
+        };
+
+        window.bufToHex = function(buffer) {
+            return Array.from(new Uint8Array(buffer))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        };
+
+        window.bufToBase64 = function(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        };
+
+        window.base64ToBuf = function(base64) {
+            const binary = window.atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        };
+
+        async function compressHtml(text) {
+            if (window.CompressionStream) {
+                const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate'));
+                const response = new Response(stream);
+                const buffer = await response.arrayBuffer();
+                return bufToBase64(buffer);
+            }
+            return encodeURIComponent(text);
+        }
+
+        async function decompressHtml(b64) {
+            if (window.DecompressionStream) {
+                const bytes = base64ToBuf(b64);
+                const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+                const response = new Response(stream);
+                return await response.text();
+            }
+            return decodeURIComponent(b64);
+        }
+
+        if (!window.crypto || !window.crypto.subtle) {
+            document.getElementById('crypto-warning')?.classList.remove('hidden');
+        }
+
+        // Purge Button
+        document.getElementById('btn-purge')?.addEventListener('click', () => {
+            document.querySelectorAll('input, textarea').forEach(el => el.value = '');
+            showToast('Đã xóa sạch mọi dữ liệu khỏi giao diện!');
+        });
+
+        // --- TAB 1: TEXT ENCRYPTION ---
+        const textInput = document.getElementById('text-input');
+        const textPassword = document.getElementById('text-password');
+        const textOutput = document.getElementById('text-output');
+        const paramSalt = document.getElementById('param-salt');
+        const paramIv = document.getElementById('param-iv');
+
+        document.getElementById('btn-encrypt-text')?.addEventListener('click', async () => {
+            const plainText = textInput.value;
+            const pass = textPassword.value;
+
+            if (!plainText) return showToast('Vui lòng nhập văn bản cần mã hóa!', true);
+            if (!pass) return showToast('Vui lòng nhập mật khẩu bảo vệ!', true);
+
+            try {
+                const encoder = new TextEncoder();
+                const result = await window.encryptData(encoder.encode(plainText), pass);
+
+                const payload = {
+                    v: 1,
+                    algo: 'AES-GCM-256',
+                    salt: bufToBase64(result.salt),
+                    iv: bufToBase64(result.iv),
+                    data: bufToBase64(result.ciphertext)
+                };
+
+                textOutput.value = window.btoa(JSON.stringify(payload));
+                paramSalt.innerText = bufToHex(result.salt);
+                paramIv.innerText = bufToHex(result.iv);
+
+                showToast('Mã hóa văn bản thành công!');
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi khi mã hóa dữ liệu!', true);
+            }
+        });
+
+        document.getElementById('btn-decrypt-text')?.addEventListener('click', async () => {
+            const cipherRaw = textInput.value.trim();
+            const pass = textPassword.value;
+
+            if (!cipherRaw) return showToast('Vui lòng dán mã Ciphertext vào ô dữ liệu!', true);
+            if (!pass) return showToast('Vui lòng nhập mật khẩu giải mã!', true);
+
+            try {
+                const payloadJson = window.atob(cipherRaw);
+                const payload = JSON.parse(payloadJson);
+
+                const salt = base64ToBuf(payload.salt);
+                const iv = base64ToBuf(payload.iv);
+                const ciphertext = base64ToBuf(payload.data);
+
+                const decryptedBuffer = await window.decryptData(ciphertext, salt, iv, pass);
+                const decoder = new TextDecoder();
+                const plainText = decoder.decode(decryptedBuffer);
+
+                textOutput.value = plainText;
+                paramSalt.innerText = bufToHex(salt);
+                paramIv.innerText = bufToHex(iv);
+
+                showToast('Giải mã văn bản thành công!');
+            } catch (err) {
+                console.error(err);
+                showToast('Giải mã thất bại! Mật khẩu sai hoặc dữ liệu bị hỏng.', true);
+            }
+        });
+
+        document.getElementById('btn-gen-pass')?.addEventListener('click', () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}';
+            let pass = '';
+            const randArray = new Uint32Array(20);
+            window.crypto.getRandomValues(randArray);
+            for (let i = 0; i < 20; i++) {
+                pass += chars[randArray[i] % chars.length];
+            }
+            textPassword.value = pass;
+            textPassword.type = 'text';
+            const icon = document.getElementById('icon-pass-eye');
+            if (icon) icon.className = 'fa-solid fa-eye-slash';
+            updatePassStrength(pass);
+            showToast('Đã tạo mật khẩu ngẫu nhiên an toàn!');
+        });
+
+        textPassword?.addEventListener('input', (e) => {
+            updatePassStrength(e.target.value);
+        });
+
+        function updatePassStrength(pass) {
+            const bar = document.getElementById('pass-strength-bar');
+            const label = document.getElementById('pass-strength-text');
+            if (!bar || !label) return;
+
+            if (!pass) {
+                bar.style.width = '0%';
+                label.innerText = 'Độ mạnh mật khẩu: Chưa nhập';
+                return;
+            }
+
+            let score = 0;
+            if (pass.length >= 8) score += 25;
+            if (pass.length >= 12) score += 25;
+            if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score += 25;
+            if (/[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass)) score += 25;
+
+            bar.style.width = `${score}%`;
+            if (score <= 25) {
+                bar.className = 'h-full bg-rose-500 transition-all duration-300';
+                label.innerText = 'Độ mạnh: Yếu';
+            } else if (score <= 50) {
+                bar.className = 'h-full bg-amber-500 transition-all duration-300';
+                label.innerText = 'Độ mạnh: Trung bình';
+            } else if (score <= 75) {
+                bar.className = 'h-full bg-blue-500 transition-all duration-300';
+                label.innerText = 'Độ mạnh: Khá mạnh';
+            } else {
+                bar.className = 'h-full bg-emerald-500 transition-all duration-300';
+                label.innerText = 'Độ mạnh: Rất an toàn (Tuyệt vời)';
+            }
+        }
+
+        document.getElementById('toggle-pass-visibility')?.addEventListener('click', () => {
+            const icon = document.getElementById('icon-pass-eye');
+            if (textPassword.type === 'password') {
+                textPassword.type = 'text';
+                if (icon) icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                textPassword.type = 'password';
+                if (icon) icon.className = 'fa-solid fa-eye';
+            }
+        });
+
+        window.copyToClipboard = function(text) {
+            if (!text) return showToast('Không có nội dung để sao chép!', true);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('Đã sao chép vào bộ nhớ tạm!');
+                }).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+        };
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Đã sao chép vào bộ nhớ tạm!');
+            } catch (err) {
+                showToast('Không thể sao chép tự động!', true);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        document.getElementById('btn-copy-output')?.addEventListener('click', () => copyToClipboard(textOutput.value));
+        document.getElementById('btn-clear-text-input')?.addEventListener('click', () => textInput.value = '');
+        document.getElementById('btn-clear-text-output')?.addEventListener('click', () => textOutput.value = '');
+
+        document.getElementById('btn-paste-text')?.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                textInput.value = text;
+                showToast('Đã dán dữ liệu từ Clipboard!');
+            } catch (e) {
+                showToast('Vui lòng dùng phím tắt Ctrl+V để dán!', true);
+            }
+        });
+
+        document.getElementById('btn-download-output')?.addEventListener('click', () => {
+            const content = textOutput.value;
+            if (!content) return showToast('Chưa có dữ liệu để tải về!', true);
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'encrypted-vault-data.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // --- TAB 2: FILE ENCRYPTION ---
+        let selectedFile = null;
+        const fileDropzone = document.getElementById('file-dropzone');
+        const fileInputElement = document.getElementById('file-input-element');
+        const selectedFileInfo = document.getElementById('selected-file-info');
+        const btnRemoveFile = document.getElementById('btn-remove-file');
+        const fileIconDisplay = document.getElementById('file-icon-display');
+
+        fileDropzone?.addEventListener('click', (e) => {
+            if (e.target.id !== 'btn-remove-file' && !e.target.closest('#btn-remove-file')) {
+                fileInputElement.click();
+            }
+        });
+
+        fileDropzone?.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileDropzone.classList.add('border-emerald-500', 'bg-emerald-950/20');
+        });
+
+        fileDropzone?.addEventListener('dragleave', () => {
+            fileDropzone.classList.remove('border-emerald-500', 'bg-emerald-950/20');
+        });
+
+        fileDropzone?.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileDropzone.classList.remove('border-emerald-500', 'bg-emerald-950/20');
+            if (e.dataTransfer.files.length > 0) {
+                selectedFile = e.dataTransfer.files[0];
+                updateFileLabel();
+            }
+        });
+
+        fileInputElement?.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                updateFileLabel();
+            }
+        });
+
+        btnRemoveFile?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedFile = null;
+            if (fileInputElement) fileInputElement.value = '';
+            updateFileLabel();
+        });
+
+        function updateFileLabel() {
+            if (selectedFile) {
+                const sizeMb = (selectedFile.size / (1024 * 1024)).toFixed(2);
+                if (selectedFileInfo) selectedFileInfo.innerText = `Đã chọn: ${selectedFile.name} (${sizeMb} MB)`;
+                if (btnRemoveFile) btnRemoveFile.classList.remove('hidden');
+                if (fileIconDisplay) fileIconDisplay.className = 'fa-solid fa-file-shield text-emerald-400';
+            } else {
+                if (selectedFileInfo) selectedFileInfo.innerText = 'Nhấp để chọn hoặc kéo thả file vào đây';
+                if (btnRemoveFile) btnRemoveFile.classList.add('hidden');
+                if (fileIconDisplay) fileIconDisplay.className = 'fa-solid fa-cloud-arrow-up text-emerald-400';
+            }
+        }
+
+        function updateFileProgress(percent, statusText) {
+            const container = document.getElementById('file-progress-container');
+            const bar = document.getElementById('file-progress-bar');
+            const pText = document.getElementById('file-progress-percent');
+            const sText = document.getElementById('file-progress-status');
+
+            if (container) container.classList.remove('hidden');
+            if (bar) bar.style.width = `${percent}%`;
+            if (pText) pText.innerText = `${percent}%`;
+            if (sText && statusText) sText.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-emerald-400"></i> ${statusText}`;
+        }
+
+        function hideFileProgress() {
+            document.getElementById('file-progress-container')?.classList.add('hidden');
+        }
+
+        document.getElementById('btn-encrypt-file')?.addEventListener('click', async () => {
+            const pass = document.getElementById('file-password').value;
+            if (!selectedFile) return showToast('Vui lòng chọn 1 tập tin!', true);
+            if (!pass) return showToast('Vui lòng nhập mật khẩu mở khóa file!', true);
+
+            try {
+                updateFileProgress(20, 'Đang đọc dữ liệu tập tin...');
+                await new Promise(r => setTimeout(r, 100));
+
+                const arrayBuffer = await selectedFile.arrayBuffer();
+
+                updateFileProgress(50, 'Đang tính toán khóa AES-GCM...');
+                await new Promise(r => setTimeout(r, 100));
+
+                const header = JSON.stringify({ name: selectedFile.name, type: selectedFile.type });
+                const headerBytes = new TextEncoder().encode(header);
+
+                const combinedBuffer = new Uint8Array(4 + headerBytes.length + arrayBuffer.byteLength);
+                const view = new DataView(combinedBuffer.buffer);
+                view.setUint32(0, headerBytes.length, true);
+
+                combinedBuffer.set(headerBytes, 4);
+                combinedBuffer.set(new Uint8Array(arrayBuffer), 4 + headerBytes.length);
+
+                updateFileProgress(80, 'Đang mã hóa các khối dữ liệu...');
+                const result = await window.encryptData(combinedBuffer.buffer, pass);
+
+                const magic = new TextEncoder().encode('VAULT1');
+                const finalBlob = new Blob([magic, result.salt, result.iv, result.ciphertext], { type: 'application/octet-stream' });
+
+                updateFileProgress(100, 'Mã hóa hoàn tất! Tải xuống...');
+
+                const url = URL.createObjectURL(finalBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${selectedFile.name}.enc`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                setTimeout(hideFileProgress, 2000);
+                showToast('Mã hóa & tải về file .enc thành công!');
+            } catch (e) {
+                console.error(e);
+                hideFileProgress();
+                showToast('Lỗi khi mã hóa tập tin!', true);
+            }
+        });
+
+        document.getElementById('btn-decrypt-file')?.addEventListener('click', async () => {
+            const pass = document.getElementById('file-password').value;
+            if (!selectedFile) return showToast('Vui lòng chọn tập tin .enc!', true);
+            if (!pass) return showToast('Vui lòng nhập mật khẩu giải mã!', true);
+
+            try {
+                updateFileProgress(20, 'Đang phân tích định dạng file...');
+                await new Promise(r => setTimeout(r, 100));
+
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+
+                const magic = new TextDecoder().decode(bytes.slice(0, 6));
+                if (magic !== 'VAULT1') {
+                    hideFileProgress();
+                    return showToast('Tập tin không đúng định dạng Vault mã hóa!', true);
+                }
+
+                const salt = bytes.slice(6, 22);
+                const iv = bytes.slice(22, 34);
+                const ciphertext = bytes.slice(34);
+
+                updateFileProgress(60, 'Đang xác thực mật khẩu & giải mã...');
+                const decryptedBuffer = await window.decryptData(ciphertext, salt, iv, pass);
+                const decBytes = new Uint8Array(decryptedBuffer);
+
+                const view = new DataView(decBytes.buffer, decBytes.byteOffset, decBytes.byteLength);
+                const headerLen = view.getUint32(0, true);
+
+                const headerStr = new TextDecoder().decode(decBytes.slice(4, 4 + headerLen));
+                const header = JSON.parse(headerStr);
+
+                const fileData = decBytes.slice(4 + headerLen);
+                const blob = new Blob([fileData], { type: header.type || 'application/octet-stream' });
+
+                updateFileProgress(100, 'Giải mã thành công!');
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = header.name || 'decrypted_file';
+                a.click();
+                URL.revokeObjectURL(url);
+
+                setTimeout(hideFileProgress, 2000);
+                showToast('Giải mã tập tin thành công!');
+            } catch (e) {
+                console.error(e);
+                hideFileProgress();
+                showToast('Mật khẩu giải mã sai hoặc file bị biến dạng!', true);
+            }
+        });
+
+        // --- TAB 3: TRANSFORM & ENCODING ---
+        const encInput = document.getElementById('encode-input');
+        const encOutput = document.getElementById('encode-output');
+
+        document.getElementById('btn-enc-b64')?.addEventListener('click', () => {
+            try { 
+                const bytes = new TextEncoder().encode(encInput.value);
+                encOutput.value = bufToBase64(bytes); 
+            } catch(e) { showToast('Lỗi Base64 Encode!', true); }
+        });
+
+        document.getElementById('btn-dec-b64')?.addEventListener('click', () => {
+            try { 
+                const bytes = base64ToBuf(encInput.value.trim());
+                encOutput.value = new TextDecoder().decode(bytes); 
+            } catch(e) { showToast('Chuỗi Base64 không hợp lệ!', true); }
+        });
+
+        document.getElementById('btn-enc-hex')?.addEventListener('click', () => {
+            const bytes = new TextEncoder().encode(encInput.value);
+            encOutput.value = bufToHex(bytes);
+        });
+
+        document.getElementById('btn-dec-hex')?.addEventListener('click', () => {
+            try {
+                const hex = encInput.value.replace(/\s+/g, '');
+                const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                encOutput.value = new TextDecoder().decode(bytes);
+            } catch(e) {
+                showToast('Chuỗi HEX không hợp lệ!', true);
+            }
+        });
+
+        document.getElementById('btn-enc-url')?.addEventListener('click', () => {
+            encOutput.value = encodeURIComponent(encInput.value);
+        });
+
+        document.getElementById('btn-dec-url')?.addEventListener('click', () => {
+            try { encOutput.value = decodeURIComponent(encInput.value); }
+            catch(e) { showToast('Chuỗi URL không hợp lệ!', true); }
+        });
+
+        document.getElementById('btn-clear-encode')?.addEventListener('click', () => {
+            encInput.value = '';
+            encOutput.value = '';
+        });
+
+        document.getElementById('btn-copy-encode')?.addEventListener('click', () => {
+            copyToClipboard(encOutput.value);
+        });
+
+        // --- TAB 4: STEGANOGRAPHY ---
+        const ZWC_0 = '\u200B';
+        const ZWC_1 = '\u200C';
+
+        document.getElementById('btn-stego-hide')?.addEventListener('click', () => {
+            const cover = document.getElementById('stego-cover').value;
+            const secret = document.getElementById('stego-secret').value;
+
+            if (!secret) return showToast('Vui lòng nhập tin nhắn bí mật!', true);
+
+            const binarySecret = secret.split('').map(char => 
+                char.charCodeAt(0).toString(2).padStart(16, '0')
+            ).join('');
+
+            const hiddenZeroWidth = binarySecret.split('').map(b => b === '0' ? ZWC_0 : ZWC_1).join('');
+
+            const pos = Math.floor(cover.length / 2);
+            const result = cover.slice(0, pos) + hiddenZeroWidth + cover.slice(pos);
+            document.getElementById('stego-output').value = result;
+            showToast('Đã giấu thành công tin nhắn mật vào văn bản!');
+        });
+
+        document.getElementById('btn-stego-reveal')?.addEventListener('click', () => {
+            const text = document.getElementById('stego-output').value || document.getElementById('stego-cover').value;
+            
+            let binary = '';
+            for (let i = 0; i < text.length; i++) {
+                if (text[i] === ZWC_0) binary += '0';
+                else if (text[i] === ZWC_1) binary += '1';
+            }
+
+            if (!binary) return showToast('Không phát hiện tin nhắn giấu nào!', true);
+
+            let revealedText = '';
+            for (let i = 0; i < binary.length; i += 16) {
+                const chunk = binary.slice(i, i + 16);
+                revealedText += String.fromCharCode(parseInt(chunk, 2));
+            }
+
+            document.getElementById('stego-secret').value = revealedText;
+            showToast(`Phát hiện tin nhắn bí mật: "${revealedText}"`);
+        });
+
+        document.getElementById('btn-stego-copy')?.addEventListener('click', () => {
+            copyToClipboard(document.getElementById('stego-output').value);
+        });
+
+        // --- TAB 6: SELF-EXECUTING HTML CREATOR ---
+        function generateSelfDecryptingHtml(encryptedData, saltBase64, ivBase64, pageTitle, autoKey = null) {
+            const safeTitle = (pageTitle || 'Bảo Mật Dữ Liệu').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const isAutoRun = !!autoKey;
+
+            return `<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-950 text-slate-100 font-sans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${safeTitle}</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="h-full flex items-center justify-center p-4">
+    ${isAutoRun ? `
+    <div id="loading-spinner" class="text-center space-y-3">
+        <i class="fa-solid fa-circle-notch animate-spin text-4xl text-emerald-400"></i>
+        <p class="text-sm text-slate-300 font-medium">Đang khởi chạy ứng dụng...</p>
+    </div>
+    ` : `
+    <div id="unlock-card" class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+        <div class="text-center space-y-2">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 mx-auto flex items-center justify-center text-xl">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h1 class="text-lg font-bold text-white">${safeTitle}</h1>
+            <p class="text-xs text-slate-400">Trang web này đã được bảo vệ bằng mã hóa AES-256. Nhập mật khẩu để khởi chạy ứng dụng.</p>
+        </div>
+        <div class="space-y-3">
+            <input type="password" id="app-pass" placeholder="Nhập mật khẩu truy cập..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 text-slate-100">
+            <button id="btn-unlock" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl transition flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-key"></i>
+                <span>Giải Mã & Khởi Chạy Trang Web</span>
+            </button>
+            <p id="err-msg" class="text-xs text-rose-400 text-center hidden"><i class="fa-solid fa-circle-xmark mr-1"></i> Mật khẩu sai hoặc mã bị hư hỏng!</p>
+        </div>
+    </div>
+    `}
+
+    <script>
+        const PAYLOAD = "${encryptedData}";
+        const SALT_B64 = "${saltBase64}";
+        const IV_B64 = "${ivBase64}";
+        const AUTO_KEY = ${autoKey ? `"${autoKey}"` : 'null'};
+
+        function base64ToBuf(b64) {
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes;
+        }
+
+        async function deriveKey(pass, salt) {
+            const enc = new TextEncoder();
+            const baseKey = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+            return await crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+                baseKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
+            );
+        }
+
+        async function doDecrypt(passToUse) {
+            const salt = base64ToBuf(SALT_B64);
+            const iv = base64ToBuf(IV_B64);
+            const cipher = base64ToBuf(PAYLOAD);
+
+            const key = await deriveKey(passToUse, salt);
+            const decBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, cipher);
+            const htmlCode = new TextDecoder().decode(decBuffer);
+
+            document.open();
+            document.write(htmlCode);
+            document.close();
+        }
+
+        async function unlockAndRun() {
+            const passInput = document.getElementById('app-pass');
+            const pass = passInput ? passInput.value : '';
+            const errMsg = document.getElementById('err-msg');
+            if (errMsg) errMsg.classList.add('hidden');
+
+            if (!AUTO_KEY && !pass) {
+                if (errMsg) {
+                    errMsg.innerText = "Vui lòng nhập mật khẩu!";
+                    errMsg.classList.remove('hidden');
+                }
+                return;
+            }
+
+            try {
+                await doDecrypt(AUTO_KEY || pass);
+            } catch (e) {
+                console.error(e);
+                if (errMsg) {
+                    errMsg.innerText = "Mật khẩu không chính xác!";
+                    errMsg.classList.remove('hidden');
+                }
+            }
+        }
+
+        if (AUTO_KEY) {
+            window.addEventListener('DOMContentLoaded', unlockAndRun);
+        } else {
+            const btnUnlock = document.getElementById('btn-unlock');
+            if (btnUnlock) btnUnlock.addEventListener('click', unlockAndRun);
+            const passEl = document.getElementById('app-pass');
+            if (passEl) passEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') unlockAndRun(); });
+        }
+    <\/script>
+</body>
+</html>`;
+        }
+
+        const selfFileDropzone = document.getElementById('self-file-dropzone');
+        const selfExecFileInput = document.getElementById('self-exec-file-input');
+        const selfFileLabel = document.getElementById('self-file-label');
+        const btnBrowseHtml = document.getElementById('btn-browse-html');
+
+        const lockModeRadios = document.querySelectorAll('input[name="lock-mode"]');
+        const passInputContainer = document.getElementById('pass-input-container');
+
+        lockModeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'auto') {
+                    passInputContainer?.classList.add('hidden');
+                } else {
+                    passInputContainer?.classList.remove('hidden');
+                }
+            });
+        });
+
+        selfFileDropzone?.addEventListener('click', () => selfExecFileInput.click());
+        btnBrowseHtml?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selfExecFileInput.click();
+        });
+
+        selfExecFileInput?.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                if (selfFileLabel) selfFileLabel.innerText = `Đã chọn: ${file.name}`;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    document.getElementById('self-exec-code').value = evt.target.result;
+                    showToast(`Đã nạp file HTML: ${file.name}`);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        document.getElementById('btn-clear-self-code')?.addEventListener('click', () => {
+            document.getElementById('self-exec-code').value = '';
+            if (selfFileLabel) selfFileLabel.innerText = 'Nhấp để chọn file .html cần mã hóa';
+            if (selfExecFileInput) selfExecFileInput.value = '';
+        });
+
+        document.getElementById('btn-build-self-exec')?.addEventListener('click', async () => {
+            const code = document.getElementById('self-exec-code').value;
+            const title = document.getElementById('self-exec-title').value || 'Secure Web App';
+            const selectedMode = document.querySelector('input[name="lock-mode"]:checked')?.value || 'password';
+            let pass = document.getElementById('self-exec-pass').value;
+
+            if (!code) return showToast('Vui lòng chọn file HTML hoặc dán mã cần mã hóa!', true);
+
+            let autoKey = null;
+
+            if (selectedMode === 'auto') {
+                const randomBytes = new Uint8Array(16);
+                window.crypto.getRandomValues(randomBytes);
+                pass = bufToBase64(randomBytes);
+                autoKey = pass;
+                showToast('Đang đóng gói file HTML ở chế độ TỰ ĐỘNG MỞ CHẠY...');
+            } else {
+                if (!pass) return showToast('Vui lòng nhập mật khẩu bảo vệ cho file!', true);
+                showToast('Đang đóng gói file HTML ở chế độ YÊU CẦU MẬT KHẨU...');
+            }
+
+            try {
+                const encoder = new TextEncoder();
+                const result = await window.encryptData(encoder.encode(code), pass);
+
+                const cipherB64 = bufToBase64(result.ciphertext);
+                const saltB64 = bufToBase64(result.salt);
+                const ivB64 = bufToBase64(result.iv);
+
+                const finalHtml = generateSelfDecryptingHtml(cipherB64, saltB64, ivB64, title, autoKey);
+
+                window.lastGeneratedSelfHtml = finalHtml;
+
+                const blob = new Blob([finalHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = autoKey ? `auto-run-app.html` : `protected-app.html`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                showToast(autoKey ? 'Đã xuất file .html tự mở chạy thành công!' : 'Đã xuất file .html mã hóa có mật khẩu!');
+            } catch (e) {
+                console.error(e);
+                showToast('Lỗi khi đóng gói ứng dụng!', true);
+            }
+        });
+
+        // --- TAB 7: ONLINE DEPLOYMENT ---
+        const onlineHtmlInput = document.getElementById('online-html-input');
+        const onlineCodeSize = document.getElementById('online-code-size');
+        const onlineResultContainer = document.getElementById('online-result-container');
+        const onlineLinkOutput = document.getElementById('online-link-output');
+        const btnOpenOnlineLink = document.getElementById('btn-open-online-link');
+
+        onlineHtmlInput?.addEventListener('input', () => {
+            const bytes = new TextEncoder().encode(onlineHtmlInput.value).length;
+            if (onlineCodeSize) onlineCodeSize.innerText = (bytes / 1024).toFixed(2) + ' KB';
+        });
+
+        document.getElementById('btn-use-last-generated')?.addEventListener('click', () => {
+            if (window.lastGeneratedSelfHtml) {
+                onlineHtmlInput.value = window.lastGeneratedSelfHtml;
+                const bytes = new TextEncoder().encode(onlineHtmlInput.value).length;
+                if (onlineCodeSize) onlineCodeSize.innerText = (bytes / 1024).toFixed(2) + ' KB';
+                showToast('Đã nạp mã HTML vừa tạo!');
+            } else {
+                showToast('Chưa có mã HTML vừa tạo từ tab trước!', true);
+            }
+        });
+
+        document.getElementById('btn-show-deploy-guide')?.addEventListener('click', () => {
+            const guide = document.getElementById('deploy-guide-modal');
+            guide?.classList.toggle('hidden');
+        });
+
+        document.getElementById('btn-close-guide')?.addEventListener('click', () => {
+            document.getElementById('deploy-guide-modal')?.classList.add('hidden');
+        });
+
+        function renderQrCode(urlText) {
+            const qrCanvasContainer = document.getElementById('qr-canvas-container');
+            const qrCaption = document.getElementById('qr-caption');
+            if (!qrCanvasContainer) return;
+
+            qrCanvasContainer.innerHTML = '';
+
+            if (urlText.length > 2500) {
+                qrCanvasContainer.innerHTML = `<p class="text-xs text-rose-500 font-medium p-2 text-center">URL quá dài để tạo mã QR dạng hình ảnh.<br>Vui lòng dùng nút <strong>"Sao chép Link"</strong> để mở trực tiếp!</p>`;
+                if (qrCaption) qrCaption.innerText = 'Dung lượng URL nén vượt giới hạn điểm ảnh QR.';
+                return;
+            }
+
+            if (qrCaption) qrCaption.innerText = 'Quét mã bằng camera điện thoại hoặc Zalo để chạy ứng dụng trực tiếp!';
+
+            if (window.QRCode) {
+                new QRCode(qrCanvasContainer, {
+                    text: urlText,
+                    width: 180,
+                    height: 180,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } else {
+                qrCanvasContainer.innerHTML = `<p class="text-xs text-slate-500">Đang tải thư viện QR...</p>`;
+            }
+        }
+
+        document.getElementById('btn-toggle-qr')?.addEventListener('click', () => {
+            const qrBox = document.getElementById('qr-container');
+            const link = document.getElementById('online-link-output').value;
+
+            if (!link) return showToast('Chưa có đường dẫn để tạo mã QR!', true);
+
+            if (qrBox.classList.contains('hidden')) {
+                renderQrCode(link);
+                qrBox.classList.remove('hidden');
+                document.getElementById('qr-btn-text').innerText = 'Ẩn Mã QR';
+            } else {
+                qrBox.classList.add('hidden');
+                document.getElementById('qr-btn-text').innerText = 'Hiện Mã QR Điện Thoại';
+            }
+        });
+
+        document.getElementById('btn-gen-compressed-url')?.addEventListener('click', async () => {
+            const html = onlineHtmlInput.value.trim();
+            if (!html) return showToast('Vui lòng dán nội dung mã HTML!', true);
+
+            try {
+                showToast('Đang nén mã nguồn thành URL permalink...');
+                const compressedB64 = await compressHtml(html);
+                const baseUrl = window.location.href.split('#')[0];
+                const fullUrl = `${baseUrl}#app=${compressedB64}`;
+
+                onlineLinkOutput.value = fullUrl;
+                btnOpenOnlineLink.href = fullUrl;
+                onlineResultContainer.classList.remove('hidden');
+
+                if (!document.getElementById('qr-container').classList.contains('hidden')) {
+                    renderQrCode(fullUrl);
+                }
+
+                showToast('Đã khởi tạo Link Permalink online thành công!');
+            } catch (err) {
+                console.error(err);
+                showToast('Không thể nén dữ liệu tạo Link!', true);
+            }
+        });
+
+        document.getElementById('btn-upload-cloud')?.addEventListener('click', async () => {
+            const html = onlineHtmlInput.value.trim();
+            if (!html) return showToast('Vui lòng dán nội dung mã HTML!', true);
+
+            try {
+                showToast('Đang tạo Blob URL thực thi ứng dụng...');
+                const blob = new Blob([html], { type: 'text/html' });
+                const blobUrl = URL.createObjectURL(blob);
+
+                onlineLinkOutput.value = blobUrl;
+                btnOpenOnlineLink.href = blobUrl;
+                onlineResultContainer.classList.remove('hidden');
+
+                if (!document.getElementById('qr-container').classList.contains('hidden')) {
+                    renderQrCode(blobUrl);
+                }
+
+                showToast('Đã khởi tạo Blob URL chạy trực tiếp trên trình duyệt!');
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi khi khởi tạo link ứng dụng!', true);
+            }
+        });
+
+        document.getElementById('btn-copy-online-link')?.addEventListener('click', () => {
+            copyToClipboard(onlineLinkOutput.value);
+        });
+
+        const sandboxModal = document.getElementById('sandbox-modal');
+        const sandboxIframe = document.getElementById('sandbox-iframe');
+
+        document.getElementById('btn-run-sandbox')?.addEventListener('click', () => {
+            const code = onlineHtmlInput.value;
+            if (!code) return showToast('Không có mã HTML để chạy thử!', true);
+
+            sandboxModal.classList.remove('hidden');
+            sandboxModal.classList.add('flex');
+
+            const doc = sandboxIframe.contentWindow.document;
+            doc.open();
+            doc.write(code);
+            doc.close();
+
+            showToast('Đã khởi chạy ứng dụng trong Sandbox!');
+        });
+
+        document.getElementById('btn-close-sandbox')?.addEventListener('click', () => {
+            sandboxModal.classList.add('hidden');
+            sandboxModal.classList.remove('flex');
+            sandboxIframe.src = 'about:blank';
+        });
+
+        // Auto-loader for permalink hashed URLs (#app=...)
+        window.addEventListener('DOMContentLoaded', async () => {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#app=')) {
+                const compressedB64 = hash.replace('#app=', '');
+                try {
+                    const htmlCode = await decompressHtml(compressedB64);
+                    document.open();
+                    document.write(htmlCode);
+                    document.close();
+                } catch (e) {
+                    console.error('Không thể giải nén ứng dụng từ URL hash:', e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
